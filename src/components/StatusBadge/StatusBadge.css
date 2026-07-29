@@ -1,0 +1,66 @@
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.status-badge--new {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.status-badge--confirmed {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.status-badge--processing {
+  background: #fffbeb;
+  color: #b45309;
+}
+
+.status-badge--delivery {
+  background: #f5f3ff;
+  color: #6d28d9;
+}
+
+.status-badge--delivered {
+  background: #f0fdf4;
+  color: #15803d;
+}
+
+.status-badge--cancelled {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.status-badge--default {
+  background: var(--color-bg-light);
+  color: var(--color-text-secondary);
+}
+
+/* Payment status badges */
+.status-badge--payment-pending {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.status-badge--payment-paid {
+  background: #f0fdf4;
+  color: #15803d;
+}
+
+.status-badge--payment-failed {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.status-badge--payment-refunded {
+  background: #f3f4f6;
+  color: #4b5563;
+}

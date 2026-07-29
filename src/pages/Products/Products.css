@@ -1,0 +1,32 @@
+.products__thumb {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-light);
+}
+
+.products__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.products__empty {
+  padding: 64px 24px;
+  text-align: center;
+}
+
+.products__empty-title {
+  font-size: 1rem;
+  font-weight: 650;
+  color: var(--color-text);
+  margin-bottom: 6px;
+}
+
+.products__empty-subtitle {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}

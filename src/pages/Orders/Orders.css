@@ -1,0 +1,17 @@
+.orders__toolbar-wrap {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.orders__page-indicator {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  min-width: 90px;
+  text-align: center;
+}
+
+.orders__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}

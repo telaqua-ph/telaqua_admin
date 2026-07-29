@@ -1,0 +1,17 @@
+.settings__grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.settings__hint {
+  margin-top: 4px;
+  margin-bottom: 8px;
+}
+
+@media (max-width: 900px) {
+  .settings__grid {
+    grid-template-columns: 1fr;
+  }
+}
