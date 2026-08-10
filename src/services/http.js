@@ -3,7 +3,7 @@
  * Base URL lives here so pages never hardcode it.
  */
 
-export const API_BASE_URL = 'https://telaqua-api.vercel.app';
+export const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 const TOKEN_KEY = 'token';
 const ADMIN_KEY = 'admin';

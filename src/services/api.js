@@ -1,6 +1,6 @@
 /**
  * Domain API methods used by pages.
- * Backed by https://telaqua-api.vercel.app via services/http.js.
+ * Backed by VITE_API_URL via services/http.js.
  * Products remain local until a products API is available (currently 501).
  */
 
