@@ -1,9 +1,27 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { changePassword, getProfile, updateProfile } from '../../services/api';
+import { createWarehouse, getWaybill } from '../../services/delhivery';
 import { Button } from '../../components/Buttons';
 import '../../styles/shared.css';
 import './Settings.css';
+
+const emptyWarehouse = {
+  name: '',
+  registered_name: '',
+  phone: '',
+  email: '',
+  address: '',
+  city: '',
+  state: '',
+  country: 'India',
+  pin: '',
+  return_address: '',
+  return_pin: '',
+  return_city: '',
+  return_state: '',
+  return_country: 'India',
+};
 
 export default function Settings() {
   const { user, updateUser } = useAuth();
@@ -17,14 +35,23 @@ export default function Settings() {
     next: '',
     confirm: '',
   });
+  const [warehouse, setWarehouse] = useState(emptyWarehouse);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [profileMsg, setProfileMsg] = useState('');
   const [profileError, setProfileError] = useState('');
   const [passwordMsg, setPasswordMsg] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [warehouseMsg, setWarehouseMsg] = useState('');
+  const [warehouseError, setWarehouseError] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
+  const [savingWarehouse, setSavingWarehouse] = useState(false);
+  const [waybillCount, setWaybillCount] = useState(1);
+  const [waybillLoading, setWaybillLoading] = useState(false);
+  const [waybillMsg, setWaybillMsg] = useState('');
+  const [waybillError, setWaybillError] = useState('');
+  const [waybillResult, setWaybillResult] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -101,6 +128,44 @@ export default function Settings() {
     }
   };
 
+  const handleWarehouseSubmit = async (e) => {
+    e.preventDefault();
+    setWarehouseMsg('');
+    setWarehouseError('');
+    setSavingWarehouse(true);
+    try {
+      const payload = {};
+      Object.entries(warehouse).forEach(([key, value]) => {
+        if (String(value).trim()) payload[key] = String(value).trim();
+      });
+      await createWarehouse(payload);
+      setWarehouseMsg(
+        'Warehouse create request sent successfully. This is a one-time setup.'
+      );
+    } catch (error) {
+      setWarehouseError(error.message || 'Failed to create warehouse');
+    } finally {
+      setSavingWarehouse(false);
+    }
+  };
+
+  const handleFetchWaybill = async (e) => {
+    e.preventDefault();
+    setWaybillMsg('');
+    setWaybillError('');
+    setWaybillResult(null);
+    setWaybillLoading(true);
+    try {
+      const result = await getWaybill(Number(waybillCount) || 1);
+      setWaybillResult(result);
+      setWaybillMsg('Waybill fetched successfully (optional tool).');
+    } catch (error) {
+      setWaybillError(error.message || 'Failed to fetch waybill');
+    } finally {
+      setWaybillLoading(false);
+    }
+  };
+
   if (loading) {
     return <div className="loading-state">Loading profile…</div>;
   }
@@ -110,7 +175,7 @@ export default function Settings() {
       <div className="page__header">
         <div className="page__header-text">
           <h2>Settings</h2>
-          <p>Manage your admin profile and password</p>
+          <p>Profile, password, and delivery warehouse setup</p>
         </div>
       </div>
 
@@ -227,6 +292,105 @@ export default function Settings() {
           </form>
         </section>
       </div>
+
+      <section className="panel settings__warehouse">
+        <div className="panel__header">
+          <h3>Warehouse / Delivery setup</h3>
+        </div>
+        <form className="panel__body" onSubmit={handleWarehouseSubmit}>
+          <p className="form-hint settings__hint">
+            One-time Delhivery warehouse registration via your Hostinger backend.
+            Do not run this automatically for every order.
+          </p>
+          {warehouseMsg && (
+            <div className="alert alert--success">{warehouseMsg}</div>
+          )}
+          {warehouseError && (
+            <div className="alert alert--error">{warehouseError}</div>
+          )}
+          <div className="form-grid">
+            {[
+              ['name', 'Warehouse name'],
+              ['registered_name', 'Registered name'],
+              ['phone', 'Phone'],
+              ['email', 'Email'],
+              ['address', 'Address'],
+              ['city', 'City'],
+              ['state', 'State'],
+              ['country', 'Country'],
+              ['pin', 'Pincode'],
+              ['return_address', 'Return address'],
+              ['return_city', 'Return city'],
+              ['return_state', 'Return state'],
+              ['return_pin', 'Return pincode'],
+              ['return_country', 'Return country'],
+            ].map(([key, label]) => (
+              <div
+                className={`form-group ${
+                  key.includes('address') ? 'form-group--full' : ''
+                }`}
+                key={key}
+              >
+                <label htmlFor={`wh-${key}`}>{label}</label>
+                <input
+                  id={`wh-${key}`}
+                  value={warehouse[key]}
+                  onChange={(e) =>
+                    setWarehouse((w) => ({ ...w, [key]: e.target.value }))
+                  }
+                  required={['name', 'phone', 'address', 'city', 'pin'].includes(
+                    key
+                  )}
+                />
+              </div>
+            ))}
+          </div>
+          <div className="form-actions">
+            <Button type="submit" disabled={savingWarehouse}>
+              {savingWarehouse ? 'Creating…' : 'Create warehouse'}
+            </Button>
+          </div>
+        </form>
+      </section>
+
+      <section className="panel settings__warehouse">
+        <div className="panel__header">
+          <h3>Fetch Waybill (optional)</h3>
+        </div>
+        <form className="panel__body" onSubmit={handleFetchWaybill}>
+          <p className="form-hint settings__hint">
+            Use only if you need to fetch AWB numbers manually. Normal order
+            fulfillment gets AWB from Create Shipment — do not use this for every order.
+          </p>
+          {waybillMsg && <div className="alert alert--success">{waybillMsg}</div>}
+          {waybillError && (
+            <div className="alert alert--error">{waybillError}</div>
+          )}
+          <div className="form-grid">
+            <div className="form-group">
+              <label htmlFor="waybill-count">Count</label>
+              <input
+                id="waybill-count"
+                type="number"
+                min="1"
+                max="10"
+                value={waybillCount}
+                onChange={(e) => setWaybillCount(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="form-actions">
+            <Button type="submit" disabled={waybillLoading}>
+              {waybillLoading ? 'Fetching…' : 'Fetch Waybill'}
+            </Button>
+          </div>
+          {waybillResult && (
+            <pre className="settings__waybill-result">
+              {JSON.stringify(waybillResult, null, 2)}
+            </pre>
+          )}
+        </form>
+      </section>
     </div>
   );
 }

@@ -28,6 +28,18 @@ const navItems = [
     ),
   },
   {
+    to: '/fulfillment',
+    label: 'Fulfillment',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <rect x="1" y="3" width="15" height="13" rx="1" />
+        <path d="M16 8h4l3 3v5h-7V8z" />
+        <circle cx="5.5" cy="18.5" r="2.5" />
+        <circle cx="18.5" cy="18.5" r="2.5" />
+      </svg>
+    ),
+  },
+  {
     to: '/products',
     label: 'Products',
     icon: (
@@ -77,7 +89,7 @@ export default function Sidebar({ open, onClose }) {
         <nav className="sidebar__nav">
           {navItems.map((item) => (
             <NavLink
-              key={item.to}
+              key={item.label}
               to={item.to}
               end={item.end}
               className={({ isActive }) =>

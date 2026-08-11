@@ -1,7 +1,7 @@
 /**
  * Domain API methods used by pages.
- * Backed by VITE_API_URL via services/http.js.
- * Products remain local until a products API is available (currently 501).
+ * Backed by VITE_API_URL via services/http.js (Hostinger).
+ * Products remain local until a products API is available.
  */
 
 import {
@@ -122,6 +122,19 @@ function formatDate(value) {
   });
 }
 
+function formatDateTime(value) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString('en-IN', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 /** Normalize API snake_case order into UI-friendly fields. */
 export function normalizeOrder(order) {
   if (!order) return null;
@@ -145,15 +158,42 @@ export function normalizeOrder(order) {
     state: order.state || '',
     pincode: order.pincode || '',
     fullAddress: addressParts.join(', '),
+    product:
+      order.product_name ||
+      order.product ||
+      order.item_name ||
+      'Tel-Aqua Product',
     quantity: order.quantity ?? 0,
     unitPrice: order.unit_price ?? order.unitPrice ?? 0,
     total: order.total_amount ?? order.total ?? 0,
     paymentMethod: order.payment_method || order.paymentMethod || '—',
     paymentStatus: order.payment_status || order.paymentStatus || 'Pending',
+    paymentId:
+      order.payment_id ||
+      order.razorpay_payment_id ||
+      order.razorpay_paymentId ||
+      '',
     status: order.order_status || order.status || 'New',
     date: formatDate(order.created_at || order.date),
     createdAt: order.created_at || null,
     updatedAt: order.updated_at || null,
+    // Shipment / Delhivery fields (orders table)
+    shipmentStatus: order.shipment_status || order.shipmentStatus || 'Not Created',
+    waybill: order.waybill || '',
+    delhiveryShipmentId:
+      order.delhivery_shipment_id || order.delhiveryShipmentId || '',
+    shipmentCreatedAt: order.shipment_created_at || null,
+    shipmentCreatedAtLabel: formatDateTime(order.shipment_created_at),
+    shipmentConfirmedAt: order.shipment_confirmed_at || null,
+    shipmentConfirmedAtLabel: formatDateTime(order.shipment_confirmed_at),
+    labelData: order.label_data || order.labelData || '',
+    pickupStatus: order.pickup_status || order.pickupStatus || 'Not Requested',
+    pickupRequestedAt: order.pickup_requested_at || null,
+    pickupRequestedAtLabel: formatDateTime(order.pickup_requested_at),
+    trackingStatus: order.tracking_status || order.trackingStatus || '',
+    trackingUpdatedAt: order.tracking_updated_at || null,
+    trackingUpdatedAtLabel: formatDateTime(order.tracking_updated_at),
+    shipmentError: order.shipment_error || order.shipmentError || '',
   };
 }
 
@@ -188,14 +228,39 @@ export async function getOrderStats() {
   const orders = await getOrders();
   const statusOf = (o) => String(o.status || '').toLowerCase();
   const payOf = (o) => String(o.paymentStatus || '').toLowerCase();
+  const shipOf = (o) => String(o.shipmentStatus || '').toLowerCase();
+  const trackOf = (o) => String(o.trackingStatus || '').toLowerCase();
 
   return {
     total: orders.length,
     new: orders.filter((o) => ['new', 'pending'].includes(statusOf(o))).length,
     confirmed: orders.filter((o) => statusOf(o) === 'confirmed').length,
-    delivered: orders.filter((o) => statusOf(o) === 'delivered').length,
+    delivered: orders.filter(
+      (o) =>
+        statusOf(o) === 'delivered' ||
+        shipOf(o) === 'delivered' ||
+        trackOf(o).includes('delivered')
+    ).length,
     pendingPayments: orders.filter((o) => payOf(o) === 'pending').length,
     completedPayments: orders.filter((o) => payOf(o) === 'paid').length,
+    paidOrders: orders.filter((o) => payOf(o) === 'paid').length,
+    shipmentsCreated: orders.filter(
+      (o) => o.waybill || !['', 'not created'].includes(shipOf(o))
+    ).length,
+    inTransit: orders.filter(
+      (o) =>
+        shipOf(o).includes('transit') ||
+        trackOf(o).includes('transit') ||
+        trackOf(o).includes('out for delivery') ||
+        shipOf(o) === 'in transit'
+    ).length,
+    ndrExceptions: orders.filter(
+      (o) =>
+        shipOf(o).includes('ndr') ||
+        trackOf(o).includes('ndr') ||
+        shipOf(o) === 'failed' ||
+        Boolean(o.shipmentError)
+    ).length,
   };
 }
 

@@ -7,7 +7,22 @@
 
 .settings__hint {
   margin-top: 4px;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
+}
+
+.settings__warehouse {
+  margin-top: 4px;
+}
+
+.settings__waybill-result {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-light);
+  font-size: 0.75rem;
+  overflow: auto;
+  max-height: 240px;
 }
 
 @media (max-width: 900px) {

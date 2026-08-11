@@ -1,8 +1,14 @@
 # Tel-Aqua Admin Dashboard (PH02)
 
-Modern, responsive admin dashboard for Tel-Aqua PH02 — built with React (Vite), React Router, HTML, CSS, and JavaScript.
+Shopify-style order & fulfillment admin for Tel-Aqua, connected to Hostinger.
 
-Connected to the live Tel-Aqua API at `https://telaqua-api.vercel.app`.
+## API base URL
+
+```env
+VITE_API_URL=https://lightpink-reindeer-561421.hostingersite.com
+```
+
+Configured in `.env.development` and `.env.production`. All requests go through `src/services/http.js`.
 
 ## Quick start
 
@@ -17,45 +23,30 @@ If PowerShell blocks npm:
 cmd /c "npm run dev"
 ```
 
-Open the local URL shown in the terminal (usually `http://localhost:5173`).
+## Integrated APIs
 
-## Login
+### Auth / Orders
+- `POST /api/auth/login`
+- `GET|PUT /api/auth/profile`
+- `PUT /api/auth/change-password`
+- `GET /api/orders`
+- `GET|PUT|DELETE /api/orders/:id`
 
-Use your real admin credentials from the API.
+### Delhivery (via Hostinger only)
+- `POST /api/delhivery/shipment/create`
+- `POST /api/delhivery/shipment/update`
+- `POST /api/delhivery/tracking`
+- `POST /api/delhivery/label`
+- `POST /api/delhivery/pickup`
+- `POST /api/delhivery/ndr`
+- `POST /api/delhivery/warehouse/create`
+- `GET /api/delhivery/waybill`
+- `GET /api/delhivery/tat`
+- `GET /api/delhivery/rate`
+- `GET /api/delhivery/serviceability/:pincode`
 
-On success the app stores:
+Delhivery tokens are **never** used in the browser.
 
-- `token` — JWT
-- `admin` — admin profile object
+## Fulfillment flow
 
-## Features
-
-- JWT authentication with protected routes
-- Dashboard summary cards derived from live orders
-- Orders list (search, filter, pagination, delete)
-- Order details (view + update `order_status` / `payment_status`)
-- Settings profile + change password via API
-- Products still use local dummy data (API returns 501)
-
-## API layer
-
-| File | Role |
-|------|------|
-| `src/services/http.js` | Base URL, Bearer token, 401 handling |
-| `src/services/api.js` | Auth / orders / products domain methods |
-
-## Project structure
-
-```
-src/
-├── components/
-├── pages/
-├── data/
-├── services/
-│   ├── http.js
-│   └── api.js
-├── context/
-├── routes/
-├── App.jsx
-└── main.jsx
-```
+Order → Admin opens order → Confirm/Create shipment → AWB saved → Label → Pickup → Tracking → Delivered

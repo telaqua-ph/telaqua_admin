@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getOrderStats, getOrders } from '../../services/api';
+import { getOrders } from '../../services/api';
 import { StatCard } from '../../components/Cards';
 import { DataTable } from '../../components/Tables';
 import { Button } from '../../components/Buttons';
 import StatusBadge from '../../components/StatusBadge/StatusBadge';
+import { fulfillmentListLabel } from '../../utils/fulfillmentTimeline';
 import '../../styles/shared.css';
 import './Dashboard.css';
 
@@ -15,19 +16,18 @@ const icons = {
       <rect x="9" y="3" width="6" height="4" rx="1" />
     </svg>
   ),
-  new: (
+  box: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <circle cx="12" cy="12" r="10" />
-      <path d="M12 8v8M8 12h8" />
+      <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" />
     </svg>
   ),
-  confirmed: (
+  pay: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
-      <polyline points="22 4 12 14.01 9 11.01" />
+      <rect x="2" y="5" width="20" height="14" rx="2" />
+      <path d="M2 10h20" />
     </svg>
   ),
-  delivered: (
+  truck: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <rect x="1" y="3" width="15" height="13" rx="1" />
       <path d="M16 8h4l3 3v5h-7V8z" />
@@ -35,19 +35,30 @@ const icons = {
       <circle cx="18.5" cy="18.5" r="2.5" />
     </svg>
   ),
-  pendingPay: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <circle cx="12" cy="12" r="10" />
-      <polyline points="12 6 12 12 16 14" />
-    </svg>
-  ),
-  completedPay: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <rect x="2" y="5" width="20" height="14" rx="2" />
-      <path d="M2 10h20" />
-    </svg>
-  ),
 };
+
+function computeStats(orders) {
+  const statusOf = (o) => String(o.status || '').toLowerCase();
+  const payOf = (o) => String(o.paymentStatus || '').toLowerCase();
+  const labelOf = (o) => fulfillmentListLabel(o);
+
+  return {
+    total: orders.length,
+    new: orders.filter((o) => ['new', 'pending'].includes(statusOf(o))).length,
+    paidOrders: orders.filter((o) => payOf(o) === 'paid').length,
+    pendingPayments: orders.filter((o) => payOf(o) === 'pending').length,
+    shipmentsCreated: orders.filter((o) => labelOf(o) !== 'Not Created').length,
+    inTransit: orders.filter((o) => {
+      const label = labelOf(o);
+      return label === 'In Transit' || label === 'Out for Delivery' || label === 'Picked Up';
+    }).length,
+    delivered: orders.filter((o) => labelOf(o) === 'Delivered').length,
+    ndrExceptions: orders.filter((o) => {
+      const label = labelOf(o);
+      return label === 'NDR / Exceptions' || label === 'Failed';
+    }).length,
+  };
+}
 
 export default function Dashboard() {
   const [stats, setStats] = useState(null);
@@ -63,37 +74,12 @@ export default function Dashboard() {
       try {
         const ordersData = await getOrders();
         if (!active) return;
-        setRecent(ordersData.slice(0, 6));
-        // No dedicated dashboard/stats API — derive cards from orders.
-        setStats({
-          total: ordersData.length,
-          new: ordersData.filter((o) =>
-            ['new', 'pending'].includes(String(o.status || '').toLowerCase())
-          ).length,
-          confirmed: ordersData.filter(
-            (o) => String(o.status || '').toLowerCase() === 'confirmed'
-          ).length,
-          delivered: ordersData.filter(
-            (o) => String(o.status || '').toLowerCase() === 'delivered'
-          ).length,
-          pendingPayments: ordersData.filter(
-            (o) => String(o.paymentStatus || '').toLowerCase() === 'pending'
-          ).length,
-          completedPayments: ordersData.filter(
-            (o) => String(o.paymentStatus || '').toLowerCase() === 'paid'
-          ).length,
-        });
+        setRecent(ordersData.slice(0, 8));
+        setStats(computeStats(ordersData));
       } catch (err) {
         if (!active) return;
         if (err.status !== 401) {
           setError(err.message || 'Failed to load dashboard');
-          try {
-            // keep card structure stable if stats helper fails independently
-            const fallback = await getOrderStats().catch(() => null);
-            if (active && fallback) setStats(fallback);
-          } catch {
-            /* ignore */
-          }
         }
       } finally {
         if (active) setLoading(false);
@@ -105,20 +91,32 @@ export default function Dashboard() {
   }, []);
 
   const columns = [
-    { key: 'orderNumber', label: 'Order ID' },
+    { key: 'orderNumber', label: 'Order' },
     { key: 'customerName', label: 'Customer' },
-    { key: 'city', label: 'City' },
-    { key: 'quantity', label: 'Qty' },
     {
-      key: 'status',
-      label: 'Status',
-      render: (row) => <StatusBadge status={row.status} />,
+      key: 'total',
+      label: 'Total',
+      render: (row) => `₹${row.total}`,
     },
-    { key: 'paymentMethod', label: 'Payment Method' },
     {
       key: 'paymentStatus',
-      label: 'Payment Status',
+      label: 'Payment',
       render: (row) => <StatusBadge status={row.paymentStatus} />,
+    },
+    {
+      key: 'shipmentStatus',
+      label: 'Shipment',
+      render: (row) => <StatusBadge status={fulfillmentListLabel(row)} />,
+    },
+    {
+      key: 'waybill',
+      label: 'AWB',
+      render: (row) => row.waybill || '—',
+    },
+    {
+      key: 'trackingStatus',
+      label: 'Tracking',
+      render: (row) => row.trackingStatus || 'Not Available',
     },
     { key: 'date', label: 'Date' },
     {
@@ -142,35 +140,30 @@ export default function Dashboard() {
     <div className="page dashboard">
       <div className="page__header">
         <div className="page__header-text">
-          <h2>Welcome back</h2>
-          <p>Overview of Tel-Aqua PH02 orders and activity</p>
+          <h2>Operations overview</h2>
+          <p>Live order, payment, and fulfillment metrics</p>
         </div>
+        <Link to="/orders">
+          <Button variant="secondary">View all orders</Button>
+        </Link>
       </div>
 
       {error && <div className="alert alert--error">{error}</div>}
 
       <div className="dashboard__stats">
         <StatCard title="Total Orders" value={stats?.total ?? 0} icon={icons.total} accent="orange" />
-        <StatCard title="New Orders" value={stats?.new ?? 0} icon={icons.new} accent="blue" />
-        <StatCard title="Confirmed Orders" value={stats?.confirmed ?? 0} icon={icons.confirmed} accent="amber" />
-        <StatCard title="Delivered Orders" value={stats?.delivered ?? 0} icon={icons.delivered} accent="green" />
-        <StatCard
-          title="Pending Payments"
-          value={stats?.pendingPayments ?? 0}
-          icon={icons.pendingPay}
-          accent="amber"
-        />
-        <StatCard
-          title="Completed Payments"
-          value={stats?.completedPayments ?? 0}
-          icon={icons.completedPay}
-          accent="green"
-        />
+        <StatCard title="New Orders" value={stats?.new ?? 0} icon={icons.box} accent="blue" />
+        <StatCard title="Paid Orders" value={stats?.paidOrders ?? 0} icon={icons.pay} accent="green" />
+        <StatCard title="Pending Payments" value={stats?.pendingPayments ?? 0} icon={icons.pay} accent="amber" />
+        <StatCard title="Shipments Created" value={stats?.shipmentsCreated ?? 0} icon={icons.truck} accent="blue" />
+        <StatCard title="In Transit" value={stats?.inTransit ?? 0} icon={icons.truck} accent="amber" />
+        <StatCard title="Delivered" value={stats?.delivered ?? 0} icon={icons.truck} accent="green" />
+        <StatCard title="NDR / Exceptions" value={stats?.ndrExceptions ?? 0} icon={icons.box} accent="orange" />
       </div>
 
       <section className="panel">
         <div className="panel__header">
-          <h3>Recent Orders</h3>
+          <h3>Recent orders</h3>
           <Link to="/orders">
             <Button size="sm" variant="ghost">
               View all

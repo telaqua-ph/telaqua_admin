@@ -1,9 +1,21 @@
 /**
- * Shared HTTP client for the Tel-Aqua API.
- * Base URL lives here so pages never hardcode it.
+ * Shared HTTP client for the Tel-Aqua Hostinger API.
+ * Base URL comes from VITE_API_URL only — never hardcode elsewhere.
  */
 
-export const API_BASE_URL = import.meta.env.VITE_API_URL;
+function normalizeBaseUrl(url) {
+  return String(url || '')
+    .trim()
+    .replace(/\/+$/, '');
+}
+
+function normalizePath(path) {
+  const raw = String(path || '').trim();
+  if (!raw) return '';
+  return raw.startsWith('/') ? raw : `/${raw}`;
+}
+
+export const API_BASE_URL = normalizeBaseUrl(import.meta.env.VITE_API_URL);
 
 const TOKEN_KEY = 'token';
 const ADMIN_KEY = 'admin';
@@ -46,9 +58,31 @@ function redirectToLogin() {
   }
 }
 
+function buildUrl(path) {
+  if (!API_BASE_URL) {
+    throw new Error('VITE_API_URL is not configured');
+  }
+  return `${API_BASE_URL}${normalizePath(path)}`;
+}
+
+function friendlyHttpMessage(status) {
+  const map = {
+    400: 'Invalid request. Please check the details and try again.',
+    401: 'Session expired. Please sign in again.',
+    403: 'You do not have permission to perform this action.',
+    404: 'The requested resource was not found.',
+    409: 'This action conflicts with the current order state.',
+    422: 'Some fields are invalid. Please review and try again.',
+    429: 'Too many requests. Please wait a moment and try again.',
+    500: 'Server error. Please try again later.',
+  };
+  return map[status] || `Request failed (${status})`;
+}
+
 /**
  * Core request helper.
  * Attaches Bearer token for authenticated requests and handles 401 globally.
+ * Never attaches Delhivery tokens — Hostinger backend owns those.
  */
 export async function apiRequest(path, options = {}) {
   const {
@@ -74,11 +108,20 @@ export async function apiRequest(path, options = {}) {
     }
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  let response;
+  try {
+    response = await fetch(buildUrl(path), {
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  } catch {
+    const error = new Error(
+      'Network error. Check your connection and try again.'
+    );
+    error.status = 0;
+    throw error;
+  }
 
   if (response.status === 401 && auth) {
     redirectToLogin();
@@ -95,13 +138,16 @@ export async function apiRequest(path, options = {}) {
   }
 
   if (!response.ok) {
-    const message =
+    const rawMessage =
       data?.message ||
       data?.error ||
-      `Request failed (${response.status})`;
+      (typeof data?.errors === 'string' ? data.errors : null);
+    // Prefer the Hostinger backend message whenever present.
+    const message = rawMessage || friendlyHttpMessage(response.status);
     const error = new Error(message);
     error.status = response.status;
     error.data = data;
+    error.rawMessage = rawMessage || null;
     throw error;
   }
 

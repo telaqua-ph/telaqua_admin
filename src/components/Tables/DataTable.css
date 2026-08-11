@@ -7,7 +7,7 @@
 .data-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 980px;
+  min-width: 1100px;
 }
 
 .data-table th,
@@ -26,6 +26,16 @@
   color: var(--color-text-secondary);
   background: var(--color-bg-light);
   white-space: nowrap;
+}
+
+.data-table__select {
+  width: 48px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.data-table th.data-table__select {
+  text-transform: none;
 }
 
 .data-table tbody tr {

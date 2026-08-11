@@ -9,6 +9,7 @@ import Products from '../pages/Products';
 import AddProduct from '../pages/AddProduct';
 import EditProduct from '../pages/EditProduct';
 import Settings from '../pages/Settings';
+import Fulfillment from '../pages/Fulfillment';
 import NotFound from '../pages/NotFound';
 
 export default function AppRoutes() {
@@ -26,6 +27,7 @@ export default function AppRoutes() {
         <Route index element={<Dashboard />} />
         <Route path="orders" element={<Orders />} />
         <Route path="orders/:id" element={<OrderDetails />} />
+        <Route path="fulfillment" element={<Fulfillment />} />
         <Route path="products" element={<Products />} />
         <Route path="products/add" element={<AddProduct />} />
         <Route path="products/edit/:id" element={<EditProduct />} />
