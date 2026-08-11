@@ -188,7 +188,11 @@ export default function Fulfillment() {
         <StatusBadge status={row.pickupStatus || 'Not Requested'} />
       ),
     },
-    { key: 'date', label: 'Date' },
+    {
+      key: 'date',
+      label: 'Ordered at',
+      render: (row) => row.date || '—',
+    },
     {
       key: 'actions',
       label: 'Actions',

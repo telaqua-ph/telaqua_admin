@@ -111,17 +111,6 @@ function unwrapItem(data) {
   return data;
 }
 
-function formatDate(value) {
-  if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return String(value).slice(0, 10);
-  return date.toLocaleDateString('en-IN', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-}
-
 function formatDateTime(value) {
   if (!value) return '—';
   const date = new Date(value);
@@ -174,7 +163,7 @@ export function normalizeOrder(order) {
       order.razorpay_paymentId ||
       '',
     status: order.order_status || order.status || 'New',
-    date: formatDate(order.created_at || order.date),
+    date: formatDateTime(order.created_at || order.date),
     createdAt: order.created_at || null,
     updatedAt: order.updated_at || null,
     // Shipment / Delhivery fields (orders table)

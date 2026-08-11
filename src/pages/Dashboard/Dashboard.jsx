@@ -118,7 +118,11 @@ export default function Dashboard() {
       label: 'Tracking',
       render: (row) => row.trackingStatus || 'Not Available',
     },
-    { key: 'date', label: 'Date' },
+    {
+      key: 'date',
+      label: 'Ordered at',
+      render: (row) => row.date || '—',
+    },
     {
       key: 'actions',
       label: 'Action',

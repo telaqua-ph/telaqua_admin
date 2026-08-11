@@ -26,7 +26,7 @@ const CSV_COLUMNS = [
   { key: 'city', label: 'City' },
   { key: 'state', label: 'State' },
   { key: 'pincode', label: 'Pincode' },
-  { key: 'date', label: 'Created Date' },
+  { key: 'date', label: 'Ordered At' },
   { key: 'shipmentStatus', label: 'Shipment Status' },
   { key: 'waybill', label: 'Waybill' },
   { key: 'delhiveryShipmentId', label: 'Delhivery Shipment ID' },
