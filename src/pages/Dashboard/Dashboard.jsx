@@ -6,6 +6,11 @@ import { DataTable } from '../../components/Tables';
 import { Button } from '../../components/Buttons';
 import StatusBadge from '../../components/StatusBadge/StatusBadge';
 import { fulfillmentListLabel } from '../../utils/fulfillmentTimeline';
+import {
+  DASHBOARD_METRICS,
+  filterOrdersByMetric,
+} from '../../utils/dashboardMetrics';
+import { exportOrdersToCsv } from '../../utils/exportOrdersCsv';
 import '../../styles/shared.css';
 import './Dashboard.css';
 
@@ -38,29 +43,56 @@ const icons = {
 };
 
 function computeStats(orders) {
-  const statusOf = (o) => String(o.status || '').toLowerCase();
-  const payOf = (o) => String(o.paymentStatus || '').toLowerCase();
-  const labelOf = (o) => fulfillmentListLabel(o);
-
   return {
-    total: orders.length,
-    new: orders.filter((o) => ['new', 'pending'].includes(statusOf(o))).length,
-    paidOrders: orders.filter((o) => payOf(o) === 'paid').length,
-    pendingPayments: orders.filter((o) => payOf(o) === 'pending').length,
-    shipmentsCreated: orders.filter((o) => labelOf(o) !== 'Not Created').length,
-    inTransit: orders.filter((o) => {
-      const label = labelOf(o);
-      return label === 'In Transit' || label === 'Out for Delivery' || label === 'Picked Up';
-    }).length,
-    delivered: orders.filter((o) => labelOf(o) === 'Delivered').length,
-    ndrExceptions: orders.filter((o) => {
-      const label = labelOf(o);
-      return label === 'NDR / Exceptions' || label === 'Failed';
-    }).length,
+    total: filterOrdersByMetric(orders, 'total').length,
+    new: filterOrdersByMetric(orders, 'new').length,
+    paidOrders: filterOrdersByMetric(orders, 'paid').length,
+    pendingPayments: filterOrdersByMetric(orders, 'pending_payment').length,
+    shipmentsCreated: filterOrdersByMetric(orders, 'shipments_created').length,
+    inTransit: filterOrdersByMetric(orders, 'in_transit').length,
+    delivered: filterOrdersByMetric(orders, 'delivered').length,
+    ndrExceptions: filterOrdersByMetric(orders, 'ndr').length,
   };
 }
 
+const CARD_DEFS = [
+  { key: 'total', valueKey: 'total', icon: icons.total, accent: 'orange' },
+  { key: 'new', valueKey: 'new', icon: icons.box, accent: 'blue' },
+  { key: 'paid', valueKey: 'paidOrders', icon: icons.pay, accent: 'green' },
+  {
+    key: 'pending_payment',
+    valueKey: 'pendingPayments',
+    icon: icons.pay,
+    accent: 'amber',
+  },
+  {
+    key: 'shipments_created',
+    valueKey: 'shipmentsCreated',
+    icon: icons.truck,
+    accent: 'blue',
+  },
+  {
+    key: 'in_transit',
+    valueKey: 'inTransit',
+    icon: icons.truck,
+    accent: 'amber',
+  },
+  {
+    key: 'delivered',
+    valueKey: 'delivered',
+    icon: icons.truck,
+    accent: 'green',
+  },
+  {
+    key: 'ndr',
+    valueKey: 'ndrExceptions',
+    icon: icons.box,
+    accent: 'orange',
+  },
+];
+
 export default function Dashboard() {
+  const [orders, setOrders] = useState([]);
   const [stats, setStats] = useState(null);
   const [recent, setRecent] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -74,6 +106,7 @@ export default function Dashboard() {
       try {
         const ordersData = await getOrders();
         if (!active) return;
+        setOrders(ordersData);
         setRecent(ordersData.slice(0, 8));
         setStats(computeStats(ordersData));
       } catch (err) {
@@ -89,6 +122,13 @@ export default function Dashboard() {
       active = false;
     };
   }, []);
+
+  const handleDownloadMetric = (metricKey) => {
+    const metric = DASHBOARD_METRICS[metricKey];
+    if (!metric) return;
+    const rows = filterOrdersByMetric(orders, metricKey);
+    exportOrdersToCsv(rows, metric.filename);
+  };
 
   const columns = [
     { key: 'orderNumber', label: 'Order' },
@@ -145,7 +185,7 @@ export default function Dashboard() {
       <div className="page__header">
         <div className="page__header-text">
           <h2>Operations overview</h2>
-          <p>Live order, payment, and fulfillment metrics</p>
+          <p>Click a card to open that list, or download its CSV</p>
         </div>
         <Link to="/orders">
           <Button variant="secondary">View all orders</Button>
@@ -155,14 +195,20 @@ export default function Dashboard() {
       {error && <div className="alert alert--error">{error}</div>}
 
       <div className="dashboard__stats">
-        <StatCard title="Total Orders" value={stats?.total ?? 0} icon={icons.total} accent="orange" />
-        <StatCard title="New Orders" value={stats?.new ?? 0} icon={icons.box} accent="blue" />
-        <StatCard title="Paid Orders" value={stats?.paidOrders ?? 0} icon={icons.pay} accent="green" />
-        <StatCard title="Pending Payments" value={stats?.pendingPayments ?? 0} icon={icons.pay} accent="amber" />
-        <StatCard title="Shipments Created" value={stats?.shipmentsCreated ?? 0} icon={icons.truck} accent="blue" />
-        <StatCard title="In Transit" value={stats?.inTransit ?? 0} icon={icons.truck} accent="amber" />
-        <StatCard title="Delivered" value={stats?.delivered ?? 0} icon={icons.truck} accent="green" />
-        <StatCard title="NDR / Exceptions" value={stats?.ndrExceptions ?? 0} icon={icons.box} accent="orange" />
+        {CARD_DEFS.map((card) => {
+          const metric = DASHBOARD_METRICS[card.key];
+          return (
+            <StatCard
+              key={card.key}
+              title={metric.title}
+              value={stats?.[card.valueKey] ?? 0}
+              icon={card.icon}
+              accent={card.accent}
+              to={metric.to}
+              onDownload={() => handleDownloadMetric(card.key)}
+            />
+          );
+        })}
       </div>
 
       <section className="panel">

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { getOrders } from '../../services/api';
 import { DataTable } from '../../components/Tables';
 import { Button } from '../../components/Buttons';
@@ -8,6 +8,8 @@ import {
   fulfillmentListLabel,
   matchesFulfillmentBucket,
 } from '../../utils/fulfillmentTimeline';
+import { filterOrdersByMetric } from '../../utils/dashboardMetrics';
+import { exportOrdersToCsv } from '../../utils/exportOrdersCsv';
 import '../../styles/shared.css';
 import './Fulfillment.css';
 
@@ -25,11 +27,15 @@ const BUCKETS = [
   { id: 'ndr', label: 'NDR / Exceptions' },
 ];
 
+const VALID_BUCKETS = new Set(BUCKETS.map((b) => b.id));
+
 export default function Fulfillment() {
+  const [searchParams] = useSearchParams();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [bucket, setBucket] = useState('all');
+  const [metricFilter, setMetricFilter] = useState('');
   const [search, setSearch] = useState('');
   const [paymentFilter, setPaymentFilter] = useState('All');
   const [shipmentFilter, setShipmentFilter] = useState('All');
@@ -37,6 +43,23 @@ export default function Fulfillment() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    const bucketParam = searchParams.get('bucket') || '';
+    const metricParam = searchParams.get('metric') || '';
+
+    if (VALID_BUCKETS.has(bucketParam)) {
+      setBucket(bucketParam);
+      setMetricFilter('');
+    } else if (
+      metricParam === 'shipments_created' ||
+      metricParam === 'in_transit'
+    ) {
+      setMetricFilter(metricParam);
+      setBucket('all');
+    }
+    setPage(1);
+  }, [searchParams]);
 
   useEffect(() => {
     let active = true;
@@ -86,7 +109,11 @@ export default function Fulfillment() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return orders.filter((order) => {
-      if (!matchesFulfillmentBucket(order, bucket)) return false;
+      if (metricFilter) {
+        if (!filterOrdersByMetric([order], metricFilter).length) return false;
+      } else if (!matchesFulfillmentBucket(order, bucket)) {
+        return false;
+      }
 
       const matchesPayment =
         paymentFilter === 'All' || order.paymentStatus === paymentFilter;
@@ -127,6 +154,7 @@ export default function Fulfillment() {
   }, [
     orders,
     bucket,
+    metricFilter,
     search,
     paymentFilter,
     shipmentFilter,
@@ -146,6 +174,7 @@ export default function Fulfillment() {
     setPage(1);
   }, [
     bucket,
+    metricFilter,
     search,
     paymentFilter,
     shipmentFilter,
@@ -213,6 +242,13 @@ export default function Fulfillment() {
   const from = filtered.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
   const to = Math.min(currentPage * PAGE_SIZE, filtered.length);
 
+  const metricLabel =
+    metricFilter === 'shipments_created'
+      ? 'Shipments created'
+      : metricFilter === 'in_transit'
+        ? 'In transit / picked up / out for delivery'
+        : null;
+
   return (
     <div className="page">
       <div className="page__header">
@@ -220,9 +256,32 @@ export default function Fulfillment() {
           <h2>Fulfillment</h2>
           <p>Operate Delhivery shipments from real order database state</p>
         </div>
+        <Button
+          variant="secondary"
+          disabled={filtered.length === 0}
+          onClick={() =>
+            exportOrdersToCsv(filtered, 'telaqua-fulfillment-filtered.csv')
+          }
+        >
+          Export Filtered
+        </Button>
       </div>
 
       {error && <div className="alert alert--error">{error}</div>}
+
+      {metricLabel && (
+        <div className="alert alert--info">
+          Showing: <strong>{metricLabel}</strong>
+          <button
+            type="button"
+            className="orders__clear-selection"
+            style={{ marginLeft: 12 }}
+            onClick={() => setMetricFilter('')}
+          >
+            Clear metric filter
+          </button>
+        </div>
+      )}
 
       <div className="fulfillment__buckets">
         {BUCKETS.map((b) => (
@@ -230,9 +289,14 @@ export default function Fulfillment() {
             key={b.id}
             type="button"
             className={`fulfillment__bucket ${
-              bucket === b.id ? 'fulfillment__bucket--active' : ''
+              !metricFilter && bucket === b.id
+                ? 'fulfillment__bucket--active'
+                : ''
             }`}
-            onClick={() => setBucket(b.id)}
+            onClick={() => {
+              setMetricFilter('');
+              setBucket(b.id);
+            }}
           >
             <span>{b.label}</span>
             <strong>{bucketCounts[b.id] ?? 0}</strong>

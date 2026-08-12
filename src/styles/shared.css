@@ -208,6 +208,12 @@
   border: 1px solid #fecaca;
 }
 
+.alert--info {
+  background: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+
 .loading-state {
   display: flex;
   align-items: center;

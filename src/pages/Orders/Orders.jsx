@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   deleteOrder,
   getOrderById,
@@ -13,6 +13,7 @@ import { Button } from '../../components/Buttons';
 import StatusBadge from '../../components/StatusBadge/StatusBadge';
 import { exportOrdersToCsv } from '../../utils/exportOrdersCsv';
 import { fulfillmentListLabel } from '../../utils/fulfillmentTimeline';
+import { filterOrdersByMetric } from '../../utils/dashboardMetrics';
 import {
   canCreateShipment,
   isShipmentCreated,
@@ -52,6 +53,7 @@ function isPaymentBlocked(order) {
 }
 
 export default function Orders() {
+  const [searchParams] = useSearchParams();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -60,6 +62,7 @@ export default function Orders() {
   const [statusFilter, setStatusFilter] = useState('All');
   const [paymentFilter, setPaymentFilter] = useState('All');
   const [shipmentFilter, setShipmentFilter] = useState('All');
+  const [metricFilter, setMetricFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [sortKey, setSortKey] = useState('createdAt');
@@ -75,6 +78,29 @@ export default function Orders() {
 
   const statuses = getOrderStatuses();
   const paymentStatuses = getPaymentStatuses();
+
+  // Deep-link from dashboard cards: ?payment=Paid&metric=new&status=New
+  useEffect(() => {
+    const payment = searchParams.get('payment');
+    const status = searchParams.get('status');
+    const shipment = searchParams.get('shipment');
+    const metric = searchParams.get('metric') || '';
+
+    if (payment && paymentStatuses.includes(payment)) {
+      setPaymentFilter(payment);
+    }
+
+    if (status && (statuses.includes(status) || status === 'Pending')) {
+      setStatusFilter(status);
+    }
+
+    if (shipment && SHIPMENT_FILTERS.includes(shipment)) {
+      setShipmentFilter(shipment);
+    }
+
+    setMetricFilter(metric === 'new' ? 'new' : '');
+    setPage(1);
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadOrders = async () => {
     const data = await getOrders();
@@ -106,8 +132,14 @@ export default function Orders() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     let list = orders.filter((order) => {
-      const matchesStatus =
-        statusFilter === 'All' || order.status === statusFilter;
+      if (metricFilter === 'new') {
+        if (!filterOrdersByMetric([order], 'new').length) return false;
+      } else {
+        const matchesStatus =
+          statusFilter === 'All' || order.status === statusFilter;
+        if (!matchesStatus) return false;
+      }
+
       const matchesPayment =
         paymentFilter === 'All' || order.paymentStatus === paymentFilter;
       const ship = String(order.shipmentStatus || '').toLowerCase();
@@ -140,7 +172,6 @@ export default function Orders() {
         String(order.city || '').toLowerCase().includes(q);
 
       return (
-        matchesStatus &&
         matchesPayment &&
         matchesShipment &&
         matchesFrom &&
@@ -164,6 +195,7 @@ export default function Orders() {
     statusFilter,
     paymentFilter,
     shipmentFilter,
+    metricFilter,
     dateFrom,
     dateTo,
     sortKey,
@@ -179,13 +211,29 @@ export default function Orders() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, statusFilter, paymentFilter, shipmentFilter, dateFrom, dateTo]);
+  }, [
+    search,
+    statusFilter,
+    paymentFilter,
+    shipmentFilter,
+    metricFilter,
+    dateFrom,
+    dateTo,
+  ]);
 
   // Clear selection when filters/search change (keep across sort/page)
   useEffect(() => {
     setSelectedIds(new Set());
     setBulkResult(null);
-  }, [search, statusFilter, paymentFilter, shipmentFilter, dateFrom, dateTo]);
+  }, [
+    search,
+    statusFilter,
+    paymentFilter,
+    shipmentFilter,
+    metricFilter,
+    dateFrom,
+    dateTo,
+  ]);
 
   const filteredIds = useMemo(
     () => filtered.map((o) => orderKey(o)),
@@ -627,6 +675,27 @@ export default function Orders() {
       {error && <div className="alert alert--error">{error}</div>}
       {message && <div className="alert alert--success">{message}</div>}
 
+      {(metricFilter === 'new' || paymentFilter !== 'All') && (
+        <div className="alert alert--info">
+          Showing:{' '}
+          <strong>
+            {metricFilter === 'new'
+              ? 'New orders (New + Pending status)'
+              : `${paymentFilter} payments`}
+          </strong>
+          {metricFilter === 'new' ? (
+            <button
+              type="button"
+              className="orders__clear-selection"
+              style={{ marginLeft: 12 }}
+              onClick={() => setMetricFilter('')}
+            >
+              Clear metric filter
+            </button>
+          ) : null}
+        </div>
+      )}
+
       {bulkProgress && (
         <div className="alert alert--info orders__bulk-progress" role="status">
           Creating shipment {bulkProgress.current} of {bulkProgress.total}
@@ -706,8 +775,11 @@ export default function Orders() {
 
             <select
               className="toolbar__select"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              value={metricFilter === 'new' ? 'New' : statusFilter}
+              onChange={(e) => {
+                setMetricFilter('');
+                setStatusFilter(e.target.value);
+              }}
               disabled={bulkBusy}
             >
               <option value="All">All order statuses</option>
