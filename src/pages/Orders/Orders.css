@@ -41,6 +41,21 @@
   color: var(--color-text-secondary);
 }
 
+.orders__address {
+  max-width: 260px;
+  line-height: 1.35;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.orders__payment-id {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
 .orders__checkbox {
   width: 16px;
   height: 16px;

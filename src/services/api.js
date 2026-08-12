@@ -111,6 +111,28 @@ function unwrapItem(data) {
   return data;
 }
 
+function formatDatePart(value) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value).slice(0, 10) || '—';
+  return date.toLocaleDateString('en-IN', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+function formatTimePart(value) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleTimeString('en-IN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+}
+
 function formatDateTime(value) {
   if (!value) return '—';
   const date = new Date(value);
@@ -164,6 +186,8 @@ export function normalizeOrder(order) {
       '',
     status: order.order_status || order.status || 'New',
     date: formatDateTime(order.created_at || order.date),
+    orderedDate: formatDatePart(order.created_at || order.date),
+    orderedTime: formatTimePart(order.created_at || order.date),
     createdAt: order.created_at || null,
     updatedAt: order.updated_at || null,
     // Shipment / Delhivery fields (orders table)

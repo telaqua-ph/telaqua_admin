@@ -574,9 +574,12 @@ export default function Orders() {
       label: 'Customer',
       render: (row) => (
         <div className="orders__customer">
-          <strong>{row.customerName}</strong>
+          <strong>{row.customerName || '—'}</strong>
           <span>{row.email || '—'}</span>
           <span>{row.phone || '—'}</span>
+          <span className="orders__address">
+            {row.fullAddress || row.address || '—'}
+          </span>
         </div>
       ),
     },
@@ -590,8 +593,15 @@ export default function Orders() {
       label: 'Payment',
       render: (row) => (
         <div className="orders__customer">
-          <StatusBadge status={row.paymentStatus} />
+          <StatusBadge status={row.paymentStatus || '—'} />
           <span>{row.paymentMethod || '—'}</span>
+          {row.paymentId ? (
+            <span className="orders__payment-id" title={row.paymentId}>
+              ID: {row.paymentId}
+            </span>
+          ) : (
+            <span>ID: —</span>
+          )}
         </div>
       ),
     },
@@ -613,7 +623,12 @@ export default function Orders() {
     {
       key: 'date',
       label: 'Ordered at',
-      render: (row) => row.date || '—',
+      render: (row) => (
+        <div className="orders__customer">
+          <strong>{row.orderedDate || '—'}</strong>
+          <span>{row.orderedTime || '—'}</span>
+        </div>
+      ),
     },
     {
       key: 'actions',
