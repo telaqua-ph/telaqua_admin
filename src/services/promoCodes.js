@@ -29,18 +29,58 @@ function formatDateTime(value) {
   });
 }
 
+function formatIstDateTime(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+}
+
+/** Convert a stored timestamp to datetime-local value in IST. */
+export function toIstDatetimeLocal(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date);
+
+  const get = (type) => parts.find((part) => part.type === type)?.value || '';
+  return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}`;
+}
+
 /** Normalize API record for admin UI. */
 export function normalizePromoCode(row) {
   if (!row) return null;
 
   const original = Number(row.original_price ?? row.originalPrice ?? 0);
   const promo = Number(row.promo_price ?? row.promoPrice ?? 0);
+  const usageRaw = row.usage_limit ?? row.usageLimit;
   const usageLimit =
-    row.usage_limit === undefined || row.usage_limit === null
-      ? null
-      : Number(row.usage_limit);
+    usageRaw === undefined || usageRaw === null ? null : Number(usageRaw);
   const usedCount = Number(row.used_count ?? row.usedCount ?? 0);
   const isActive = Boolean(row.is_active ?? row.isActive);
+  const validFrom = row.valid_from ?? row.validFrom ?? null;
+  const validUntil = row.valid_until ?? row.validUntil ?? null;
+  const effectiveStatus =
+    row.effective_status ||
+    row.effectiveStatus ||
+    (isActive ? 'Active' : 'Inactive');
 
   return {
     id: row.id,
@@ -51,13 +91,19 @@ export function normalizePromoCode(row) {
     promoPrice: promo,
     discount: Math.max(0, original - promo),
     isActive,
-    statusLabel: isActive ? 'Active' : 'Inactive',
+    statusLabel: effectiveStatus,
     usageLimit: Number.isFinite(usageLimit) ? usageLimit : null,
     usedCount: Number.isFinite(usedCount) ? usedCount : 0,
     createdAt: row.created_at || row.createdAt || null,
     updatedAt: row.updated_at || row.updatedAt || null,
     createdAtLabel: formatDateTime(row.created_at || row.createdAt),
     updatedAtLabel: formatDateTime(row.updated_at || row.updatedAt),
+    validFrom,
+    validUntil,
+    validFromLabel: validFrom ? formatIstDateTime(validFrom) : null,
+    validUntilLabel: validUntil ? formatIstDateTime(validUntil) : null,
+    validFromLocal: toIstDatetimeLocal(validFrom),
+    validUntilLocal: toIstDatetimeLocal(validUntil),
   };
 }
 

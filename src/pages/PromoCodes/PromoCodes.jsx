@@ -31,12 +31,23 @@ const emptyForm = {
   promo_price: '',
   is_active: true,
   usage_limit: '',
+  valid_from: '',
+  valid_until: '',
 };
 
 function formatInr(value) {
   const n = Number(value);
   if (!Number.isFinite(n)) return '—';
   return `₹${n.toLocaleString('en-IN')}`;
+}
+
+function validityPayload(form) {
+  const from = String(form.valid_from || '').trim();
+  const until = String(form.valid_until || '').trim();
+  return {
+    valid_from: from || null,
+    valid_until: until || null,
+  };
 }
 
 function validateForm(form, { requireActiveField }) {
@@ -71,6 +82,12 @@ function validateForm(form, { requireActiveField }) {
     }
   }
 
+  const from = String(form.valid_from || '').trim();
+  const until = String(form.valid_until || '').trim();
+  if (from && until && until <= from) {
+    return 'Valid until must be later than valid from.';
+  }
+
   return '';
 }
 
@@ -84,6 +101,7 @@ function buildCreatePayload(form) {
     promo_price: Number(form.promo_price),
     is_active: Boolean(form.is_active),
     usage_limit: limitRaw === '' ? null : Number(limitRaw),
+    ...validityPayload(form),
   };
 }
 
@@ -96,6 +114,7 @@ function buildUpdatePayload(form) {
     original_price: Number(form.original_price),
     promo_price: Number(form.promo_price),
     usage_limit: limitRaw === '' ? null : Number(limitRaw),
+    ...validityPayload(form),
   };
 }
 
@@ -181,6 +200,8 @@ export default function PromoCodes() {
         row.usageLimit === null || row.usageLimit === undefined
           ? ''
           : String(row.usageLimit),
+      valid_from: row.validFromLocal || '',
+      valid_until: row.validUntilLocal || '',
     });
     setFormError('');
     setModalOpen(true);
@@ -262,7 +283,9 @@ export default function PromoCodes() {
             : {
                 ...item,
                 isActive: nextActive,
-                statusLabel: nextActive ? 'Active' : 'Inactive',
+                statusLabel:
+                  result.promoCode?.statusLabel ||
+                  (nextActive ? 'Active' : 'Inactive'),
               };
           return merged;
         })
@@ -323,6 +346,26 @@ export default function PromoCodes() {
       key: 'status',
       label: 'Status',
       render: (row) => <StatusBadge status={row.statusLabel} />,
+    },
+    {
+      key: 'validity',
+      label: 'Valid',
+      render: (row) => {
+        if (!row.validFrom && !row.validUntil) {
+          return (
+            <span className="promo-codes__validity-empty">
+              No time restriction
+            </span>
+          );
+        }
+        return (
+          <div className="promo-codes__validity">
+            <span>{row.validFromLabel || 'No start'}</span>
+            <span className="promo-codes__validity-arrow">→</span>
+            <span>{row.validUntilLabel || 'No end'}</span>
+          </div>
+        );
+      },
     },
     {
       key: 'usageLimit',
@@ -605,6 +648,34 @@ export default function PromoCodes() {
                 </label>
               </div>
             )}
+
+            <div className="form-group">
+              <label htmlFor="promo-valid-from">Valid from (IST)</label>
+              <input
+                id="promo-valid-from"
+                type="datetime-local"
+                step="60"
+                value={form.valid_from}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, valid_from: e.target.value }))
+                }
+              />
+              <p className="form-hint">Indian time. Leave empty for no start time.</p>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="promo-valid-until">Valid until (IST)</label>
+              <input
+                id="promo-valid-until"
+                type="datetime-local"
+                step="60"
+                value={form.valid_until}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, valid_until: e.target.value }))
+                }
+              />
+              <p className="form-hint">Indian time. Leave empty for no expiry.</p>
+            </div>
           </div>
 
           {discountPreview !== null && (

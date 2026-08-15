@@ -51,10 +51,20 @@
   letter-spacing: 0.03em;
 }
 
-.promo-codes__dates {
+.promo-codes__validity {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  min-width: 9.5rem;
+}
+
+.promo-codes__validity-arrow {
+  color: var(--color-text-secondary);
+}
+
+.promo-codes__validity-empty {
   font-size: 0.75rem;
   color: var(--color-text-secondary);
 }

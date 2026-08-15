@@ -16,6 +16,8 @@ const statusMap = {
   cancelled: 'cancelled',
   Active: 'delivered',
   Inactive: 'cancelled',
+  Scheduled: 'processing',
+  Expired: 'payment-failed',
   'Out of Stock': 'new',
   Paid: 'payment-paid',
   paid: 'payment-paid',
