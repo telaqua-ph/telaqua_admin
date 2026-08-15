@@ -5,8 +5,7 @@ export function hasWaybill(order) {
 }
 
 export function isShipmentCreated(order) {
-  const status = String(order?.shipmentStatus || '').toLowerCase();
-  return hasWaybill(order) || (status && status !== 'not created');
+  return hasWaybill(order);
 }
 
 export function canCreateShipment(order) {

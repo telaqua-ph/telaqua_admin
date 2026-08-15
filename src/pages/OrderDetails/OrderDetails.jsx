@@ -13,12 +13,9 @@ import StatusBadge from '../../components/StatusBadge/StatusBadge';
 import { Modal } from '../../components/Modal';
 import {
   canCreateShipment,
-  extractLabelUrl,
   extractWaybillFromResponse,
   hasWaybill,
   isShipmentCreated,
-  looksLikeNdr,
-  openLabelAsset,
 } from '../../utils/shipmentHelpers';
 import {
   extractBackendMessage,
@@ -146,17 +143,6 @@ export default function OrderDetails() {
   const shipmentReady = isShipmentCreated(order);
   const waybillReady = hasWaybill(order);
   const createAllowed = canCreateShipment(order);
-  const showNdr = looksLikeNdr(order);
-  const labelReady = Boolean(
-    order?.labelData &&
-      String(order.labelData).trim() &&
-      String(order.labelData).trim() !== '—'
-  );
-
-  const labelUrl = useMemo(
-    () => extractLabelUrl(null, order?.labelData),
-    [order?.labelData]
-  );
 
   const runAction = async (key, fn, successMsg) => {
     setActionLoading(key);
@@ -234,8 +220,13 @@ export default function OrderDetails() {
       const refreshed = await refreshOrder();
       const waybill =
         refreshed?.waybill ||
+        result?.awb ||
+        result?.waybill ||
         extractWaybillFromResponse(result) ||
         '';
+      const alreadyCreated =
+        String(result?.message || '').toLowerCase() ===
+        'shipment already created';
 
       setConfirmOpen(false);
       setShipmentSuccess({
@@ -243,7 +234,11 @@ export default function OrderDetails() {
         status: refreshed?.shipmentStatus || 'Created',
         createdAt: refreshed?.shipmentCreatedAtLabel || 'Just now',
       });
-      setMessage('Shipment Created Successfully');
+      setMessage(
+        alreadyCreated
+          ? 'Shipment already created'
+          : 'Shipment Created Successfully'
+      );
     } catch (err) {
       if (err.status === 401) return;
 
@@ -279,34 +274,14 @@ export default function OrderDetails() {
     }
   };
 
-  const handleGenerateLabel = async () => {
-    if (!order?.waybill || actionLoading === 'label') return;
-    await runAction(
-      'label',
-      () => delhivery.getLabel(order.waybill),
-      'Label Generated'
+  const handleTrackShipment = () => {
+    const awb = String(order?.waybill || '').trim();
+    if (!awb) return;
+    window.open(
+      `https://www.delhivery.com/track/package/${encodeURIComponent(awb)}`,
+      '_blank',
+      'noopener,noreferrer'
     );
-  };
-
-  const handleViewLabel = () => {
-    openLabelAsset(labelUrl, { download: false });
-  };
-
-  const handleDownloadLabel = () => {
-    openLabelAsset(labelUrl, {
-      download: true,
-      filename: `label-${order?.waybill || order?.orderNumber || 'shipment'}.pdf`,
-    });
-  };
-
-  const handleRefreshTracking = async () => {
-    if (!order?.waybill || actionLoading === 'tracking') return;
-    const result = await runAction(
-      'tracking',
-      () => delhivery.getTracking(order.waybill),
-      'Tracking refreshed.'
-    );
-    if (result) setTrackingPayload(result);
   };
 
   const openEditShipment = () => {
@@ -444,11 +419,6 @@ export default function OrderDetails() {
     () => extractTrackingEvents(trackingPayload),
     [trackingPayload]
   );
-  const isDelivered =
-    String(order?.trackingStatus || '')
-      .toLowerCase()
-      .includes('delivered') ||
-    String(order?.shipmentStatus || '').toLowerCase() === 'delivered';
 
   if (loading) {
     return <div className="loading-state">Loading order…</div>;
@@ -667,9 +637,19 @@ export default function OrderDetails() {
             </div>
             <div className="panel__body order-details__fields">
               <div>
-                <span>Shipment status</span>
+                <span>Delivery</span>
+                <strong>{order.waybill ? 'Delhivery' : 'Not Created'}</strong>
+              </div>
+              <div>
+                <span>Status</span>
                 <strong>
-                  <StatusBadge status={fulfillmentListLabel(order)} />
+                  <StatusBadge
+                    status={
+                      order.waybill
+                        ? order.shipmentStatus || 'Created'
+                        : 'Not Created'
+                    }
+                  />
                 </strong>
               </div>
               <div>
@@ -865,6 +845,31 @@ export default function OrderDetails() {
               <h3>Delivery actions</h3>
             </div>
             <div className="panel__body order-details__actions">
+              <div className="order-details__stack">
+                <div>
+                  <span>Payment</span>
+                  <strong>
+                    <StatusBadge status={order.paymentStatus} />
+                  </strong>
+                </div>
+                <div>
+                  <span>Delivery</span>
+                  <strong>{order.waybill ? 'Delhivery' : 'Not Created'}</strong>
+                </div>
+                {order.waybill ? (
+                  <>
+                    <div>
+                      <span>Status</span>
+                      <strong>{order.shipmentStatus || 'Created'}</strong>
+                    </div>
+                    <div>
+                      <span>AWB</span>
+                      <strong>{order.waybill}</strong>
+                    </div>
+                  </>
+                ) : null}
+              </div>
+
               {!shipmentReady && (
                 <Button
                   disabled={busy || !createAllowed || actionLoading === 'create'}
@@ -875,124 +880,24 @@ export default function OrderDetails() {
                   }}
                 >
                   {actionLoading === 'create'
-                    ? 'Creating Shipment...'
-                    : 'Confirm / Create Shipment'}
+                    ? 'Sending to Delhivery...'
+                    : 'Send to Delhivery'}
                 </Button>
               )}
               {!createAllowed && !shipmentReady && (
                 <p className="form-hint">
-                  Shipment is blocked until payment is paid (or COD).
+                  Prepaid orders must be Paid before sending to Delhivery.
                 </p>
               )}
 
               {waybillReady && (
-                <>
-                  {!isDelivered && (
-                    <>
-                      {labelReady ? (
-                        <>
-                          <p className="form-hint">Label Generated</p>
-                          {labelUrl ? (
-                            <>
-                              <Button
-                                variant="secondary"
-                                disabled={busy}
-                                onClick={handleViewLabel}
-                              >
-                                View Label
-                              </Button>
-                              <Button
-                                variant="secondary"
-                                disabled={busy}
-                                onClick={handleDownloadLabel}
-                              >
-                                Download Label
-                              </Button>
-                            </>
-                          ) : (
-                            <p className="form-hint">
-                              Label is saved on the order. Regenerate if you need
-                              a downloadable PDF/URL.
-                            </p>
-                          )}
-                          <Button
-                            variant="outline-primary"
-                            disabled={busy || actionLoading === 'label'}
-                            onClick={handleGenerateLabel}
-                          >
-                            {actionLoading === 'label'
-                              ? 'Generating…'
-                              : 'Regenerate Label'}
-                          </Button>
-                        </>
-                      ) : (
-                        <Button
-                          variant="secondary"
-                          disabled={busy || actionLoading === 'label'}
-                          onClick={handleGenerateLabel}
-                        >
-                          {actionLoading === 'label'
-                            ? 'Generating…'
-                            : 'Generate Label'}
-                        </Button>
-                      )}
-
-                      <Button
-                        variant="secondary"
-                        disabled={
-                          busy || !labelReady || actionLoading === 'pickup'
-                        }
-                        onClick={openPickup}
-                      >
-                        {actionLoading === 'pickup'
-                          ? 'Requesting…'
-                          : 'Request Pickup'}
-                      </Button>
-                      {!labelReady ? (
-                        <p className="form-hint">
-                          Generate a label before requesting pickup.
-                        </p>
-                      ) : null}
-                    </>
-                  )}
-
-                  <Button
-                    variant="secondary"
-                    disabled={busy || actionLoading === 'tracking'}
-                    onClick={handleRefreshTracking}
-                  >
-                    {actionLoading === 'tracking'
-                      ? 'Refreshing…'
-                      : 'Refresh Tracking'}
-                  </Button>
-
-                  {!isDelivered && (
-                    <Button
-                      variant="secondary"
-                      disabled={busy}
-                      onClick={openEditShipment}
-                    >
-                      Edit Shipment
-                    </Button>
-                  )}
-                </>
-              )}
-
-              {showNdr && !isDelivered && (
-                <div className="order-details__ndr">
-                  <h4>NDR Actions</h4>
-                  <p className="form-hint">
-                    Available because tracking/shipment indicates an NDR or
-                    exception.
-                  </p>
-                  <Button
-                    variant="outline-primary"
-                    disabled={busy}
-                    onClick={() => setNdrOpen(true)}
-                  >
-                    Open NDR Actions
-                  </Button>
-                </div>
+                <Button
+                  variant="secondary"
+                  disabled={busy}
+                  onClick={handleTrackShipment}
+                >
+                  Track Shipment
+                </Button>
               )}
             </div>
           </section>
@@ -1002,7 +907,7 @@ export default function OrderDetails() {
       {/* Confirm shipment */}
       <Modal
         open={confirmOpen}
-        title={`Confirm shipment for ${order.orderNumber}?`}
+        title={`Send ${order.orderNumber} to Delhivery?`}
         onClose={() => !busy && setConfirmOpen(false)}
         footer={
           <>
@@ -1018,8 +923,8 @@ export default function OrderDetails() {
               onClick={handleCreateShipment}
             >
               {actionLoading === 'create'
-                ? 'Creating Shipment...'
-                : 'Confirm & Create'}
+                ? 'Sending to Delhivery...'
+                : 'Send to Delhivery'}
             </Button>
           </>
         }
