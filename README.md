@@ -34,19 +34,10 @@ cmd /c "npm run dev"
 
 ### Delhivery (via Hostinger only)
 - `POST /api/delhivery/shipment/create`
-- `POST /api/delhivery/shipment/update`
-- `POST /api/delhivery/tracking`
-- `POST /api/delhivery/label`
-- `POST /api/delhivery/pickup`
-- `POST /api/delhivery/ndr`
-- `POST /api/delhivery/warehouse/create`
-- `GET /api/delhivery/waybill`
-- `GET /api/delhivery/tat`
-- `GET /api/delhivery/rate`
-- `GET /api/delhivery/serviceability/:pincode`
+- `POST /api/delhivery/create-shipment` (alias)
 
 Delhivery tokens are **never** used in the browser.
 
 ## Fulfillment flow
 
-Order → Admin opens order → Confirm/Create shipment → AWB saved → Label → Pickup → Tracking → Delivered
+Order → Admin opens order → Send to Delhivery → AWB saved in Neon → remaining logistics in Delhivery One

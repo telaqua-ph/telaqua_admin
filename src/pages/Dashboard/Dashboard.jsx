@@ -49,9 +49,6 @@ function computeStats(orders) {
     paidOrders: filterOrdersByMetric(orders, 'paid').length,
     pendingPayments: filterOrdersByMetric(orders, 'pending_payment').length,
     shipmentsCreated: filterOrdersByMetric(orders, 'shipments_created').length,
-    inTransit: filterOrdersByMetric(orders, 'in_transit').length,
-    delivered: filterOrdersByMetric(orders, 'delivered').length,
-    ndrExceptions: filterOrdersByMetric(orders, 'ndr').length,
   };
 }
 
@@ -70,24 +67,6 @@ const CARD_DEFS = [
     valueKey: 'shipmentsCreated',
     icon: icons.truck,
     accent: 'blue',
-  },
-  {
-    key: 'in_transit',
-    valueKey: 'inTransit',
-    icon: icons.truck,
-    accent: 'amber',
-  },
-  {
-    key: 'delivered',
-    valueKey: 'delivered',
-    icon: icons.truck,
-    accent: 'green',
-  },
-  {
-    key: 'ndr',
-    valueKey: 'ndrExceptions',
-    icon: icons.box,
-    accent: 'orange',
   },
 ];
 
@@ -152,11 +131,6 @@ export default function Dashboard() {
       key: 'waybill',
       label: 'AWB',
       render: (row) => row.waybill || '—',
-    },
-    {
-      key: 'trackingStatus',
-      label: 'Tracking',
-      render: (row) => row.trackingStatus || 'Not Available',
     },
     {
       key: 'date',

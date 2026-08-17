@@ -36,35 +36,7 @@ export const DASHBOARD_METRICS = {
     title: 'Shipments Created',
     to: '/fulfillment?metric=shipments_created',
     filename: 'telaqua-shipments-created.csv',
-    match: (o) => fulfillmentListLabel(o) !== 'Not Created',
-  },
-  in_transit: {
-    title: 'In Transit',
-    to: '/fulfillment?metric=in_transit',
-    filename: 'telaqua-in-transit.csv',
-    match: (o) => {
-      const label = fulfillmentListLabel(o);
-      return (
-        label === 'In Transit' ||
-        label === 'Out for Delivery' ||
-        label === 'Picked Up'
-      );
-    },
-  },
-  delivered: {
-    title: 'Delivered',
-    to: '/fulfillment?bucket=delivered',
-    filename: 'telaqua-delivered.csv',
-    match: (o) => fulfillmentListLabel(o) === 'Delivered',
-  },
-  ndr: {
-    title: 'NDR / Exceptions',
-    to: '/fulfillment?bucket=ndr',
-    filename: 'telaqua-ndr-exceptions.csv',
-    match: (o) => {
-      const label = fulfillmentListLabel(o);
-      return label === 'NDR / Exceptions' || label === 'Failed';
-    },
+    match: (o) => fulfillmentListLabel(o) === 'Created',
   },
 };
 

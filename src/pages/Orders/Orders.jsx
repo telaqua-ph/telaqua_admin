@@ -31,9 +31,6 @@ const SHIPMENT_FILTERS = [
   'All',
   'Not Created',
   'Created',
-  'In Transit',
-  'Delivered',
-  'Cancelled',
   'Failed',
 ];
 
@@ -143,16 +140,13 @@ export default function Orders() {
       const matchesPayment =
         paymentFilter === 'All' || order.paymentStatus === paymentFilter;
       const ship = String(order.shipmentStatus || '').toLowerCase();
-      const track = String(order.trackingStatus || '').toLowerCase();
       let matchesShipment = true;
       if (shipmentFilter !== 'All') {
         const f = shipmentFilter.toLowerCase();
         matchesShipment =
-          ship === f ||
-          ship.includes(f) ||
-          track.includes(f) ||
-          (f === 'not created' && (!order.waybill && ship.includes('not'))) ||
-          (f === 'created' && Boolean(order.waybill));
+          (f === 'not created' && !order.waybill) ||
+          (f === 'created' && Boolean(order.waybill)) ||
+          (f === 'failed' && (ship.includes('fail') || ship.includes('error')));
       }
 
       const created = order.createdAt ? new Date(order.createdAt) : null;
@@ -614,11 +608,6 @@ export default function Orders() {
       key: 'waybill',
       label: 'AWB',
       render: (row) => row.waybill || '—',
-    },
-    {
-      key: 'trackingStatus',
-      label: 'Tracking',
-      render: (row) => row.trackingStatus || 'Not Available',
     },
     {
       key: 'date',

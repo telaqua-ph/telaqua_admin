@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+﻿import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   deleteOrder,
@@ -23,33 +23,9 @@ import {
   mentionsPartialSave,
   sanitizeTechnicalMessage,
 } from '../../utils/shipmentErrorMessages';
-import {
-  buildFulfillmentTimeline,
-  extractTrackingEvents,
-  fulfillmentListLabel,
-} from '../../utils/fulfillmentTimeline';
+import { fulfillmentListLabel } from '../../utils/fulfillmentTimeline';
 import '../../styles/shared.css';
 import './OrderDetails.css';
-
-const emptyPickup = {
-  pickup_date: '',
-  pickup_time: '18:30:00',
-  pickup_location: 'Telaqua WH',
-  expected_package_count: 1,
-};
-
-const emptyEditForm = {
-  phone: '',
-  name: '',
-  add: '',
-  cod: '',
-  gm: '',
-  shipment_length: '',
-  shipment_width: '',
-  shipment_height: '',
-  product_details: '',
-  pt: '',
-};
 
 export default function OrderDetails() {
   const { id } = useParams();
@@ -63,7 +39,6 @@ export default function OrderDetails() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [actionLoading, setActionLoading] = useState('');
-  const [trackingPayload, setTrackingPayload] = useState(null);
   const [shipmentFailure, setShipmentFailure] = useState(null);
   const [shipmentSuccess, setShipmentSuccess] = useState(null);
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
@@ -82,19 +57,6 @@ export default function OrderDetails() {
   };
 
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [editOpen, setEditOpen] = useState(false);
-  const [pickupOpen, setPickupOpen] = useState(false);
-  const [ndrOpen, setNdrOpen] = useState(false);
-
-  const [editForm, setEditForm] = useState(emptyEditForm);
-  const [pickupForm, setPickupForm] = useState(emptyPickup);
-  const [ndrForm, setNdrForm] = useState({
-    act: 'RE-ATTEMPT',
-    deferred_date: '',
-    name: '',
-    phone: '',
-    add: '',
-  });
 
   const statuses = getOrderStatuses();
   const paymentStatuses = getPaymentStatuses();
@@ -143,33 +105,6 @@ export default function OrderDetails() {
   const shipmentReady = isShipmentCreated(order);
   const waybillReady = hasWaybill(order);
   const createAllowed = canCreateShipment(order);
-
-  const runAction = async (key, fn, successMsg) => {
-    setActionLoading(key);
-    setError('');
-    setMessage('');
-    try {
-      const result = await fn();
-      await refreshOrder();
-      if (successMsg) setMessage(successMsg);
-      return result;
-    } catch (err) {
-      if (err.status !== 401) {
-        const raw = sanitizeTechnicalMessage(
-          extractBackendMessage(err) || err.message || 'Action failed'
-        );
-        setError(raw || 'Action failed');
-      }
-      try {
-        await refreshOrder();
-      } catch {
-        /* ignore refresh failure */
-      }
-      return null;
-    } finally {
-      setActionLoading('');
-    }
-  };
 
   const handleSaveStatus = async (e) => {
     e.preventDefault();
@@ -230,7 +165,7 @@ export default function OrderDetails() {
 
       setConfirmOpen(false);
       setShipmentSuccess({
-        waybill: waybill || refreshed?.waybill || '—',
+        waybill: waybill || refreshed?.waybill || 'â€”',
         status: refreshed?.shipmentStatus || 'Created',
         createdAt: refreshed?.shipmentCreatedAtLabel || 'Just now',
       });
@@ -284,144 +219,8 @@ export default function OrderDetails() {
     );
   };
 
-  const openEditShipment = () => {
-    setEditForm({
-      ...emptyEditForm,
-      phone: order.phone || '',
-      name: order.customerName || '',
-      add: order.address || '',
-      cod: order.paymentMethod?.toLowerCase?.().includes('cod')
-        ? String(order.total || '')
-        : '',
-      product_details: order.product || '',
-    });
-    setEditOpen(true);
-  };
-
-  const handleUpdateShipment = async () => {
-    if (!order?.waybill || actionLoading === 'update') return;
-    const body = { waybill: order.waybill };
-    const optionalKeys = [
-      'phone',
-      'name',
-      'add',
-      'cod',
-      'gm',
-      'shipment_length',
-      'shipment_width',
-      'shipment_height',
-      'product_details',
-      'pt',
-    ];
-    optionalKeys.forEach((key) => {
-      const value = String(editForm[key] ?? '').trim();
-      if (value) body[key] = value;
-    });
-
-    if (Object.keys(body).length <= 1) {
-      setError('Enter at least one field to update.');
-      return;
-    }
-
-    await runAction(
-      'update',
-      () => delhivery.updateShipment(body),
-      'Shipment updated successfully'
-    );
-    setEditOpen(false);
-  };
-
-  const openPickup = () => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    setPickupForm({
-      ...emptyPickup,
-      pickup_date: tomorrow.toISOString().slice(0, 10),
-      expected_package_count: Math.max(1, Number(order?.quantity) || 1),
-    });
-    setPickupOpen(true);
-  };
-
-  const handleRequestPickup = async () => {
-    if (actionLoading === 'pickup') return;
-    if (
-      !pickupForm.pickup_date ||
-      !pickupForm.pickup_time ||
-      !pickupForm.pickup_location.trim()
-    ) {
-      setError('Pickup date, time, and location are required.');
-      return;
-    }
-
-    const alreadyRequested = String(order?.pickupStatus || '')
-      .toLowerCase()
-      .includes('request');
-    if (alreadyRequested) {
-      const ok = window.confirm(
-        'Pickup appears already requested for this order. Request again?'
-      );
-      if (!ok) return;
-    }
-
-    await runAction(
-      'pickup',
-      () =>
-        delhivery.requestPickup({
-          pickup_time: pickupForm.pickup_time,
-          pickup_date: pickupForm.pickup_date,
-          pickup_location: pickupForm.pickup_location.trim(),
-          expected_package_count: Number(pickupForm.expected_package_count) || 1,
-        }),
-      'Pickup Requested'
-    );
-    setPickupOpen(false);
-  };
-
-  const handleSubmitNdr = async () => {
-    if (!order?.waybill || actionLoading === 'ndr') return;
-    const item = { waybill: order.waybill, act: ndrForm.act };
-    if (ndrForm.act === 'DEFER_DLV') {
-      if (!ndrForm.deferred_date) {
-        setError('Deferred date is required for DEFER_DLV.');
-        return;
-      }
-      item.action_data = { deferred_date: ndrForm.deferred_date };
-    }
-    if (ndrForm.act === 'EDIT_DETAILS') {
-      item.action_data = {};
-      if (ndrForm.name.trim()) item.action_data.name = ndrForm.name.trim();
-      if (ndrForm.phone.trim()) item.action_data.phone = ndrForm.phone.trim();
-      if (ndrForm.add.trim()) item.action_data.add = ndrForm.add.trim();
-      if (!Object.keys(item.action_data).length) {
-        setError('Provide at least one field for EDIT_DETAILS.');
-        return;
-      }
-    }
-
-    const confirmed = window.confirm(
-      `Submit NDR action "${ndrForm.act}" for AWB ${order.waybill}?`
-    );
-    if (!confirmed) return;
-
-    await runAction(
-      'ndr',
-      () => delhivery.submitNdr({ data: [item] }),
-      'NDR action submitted.'
-    );
-    setNdrOpen(false);
-  };
-
-  const timeline = useMemo(
-    () => buildFulfillmentTimeline(order),
-    [order]
-  );
-  const trackingEvents = useMemo(
-    () => extractTrackingEvents(trackingPayload),
-    [trackingPayload]
-  );
-
   if (loading) {
-    return <div className="loading-state">Loading order…</div>;
+    return <div className="loading-state">Loading orderâ€¦</div>;
   }
 
   if (!order) {
@@ -444,7 +243,7 @@ export default function OrderDetails() {
           <p className="order-details__eyebrow">Order</p>
           <h2>{order.orderNumber}</h2>
           <p>
-            Placed {order.date} · <StatusBadge status={order.status} /> ·{' '}
+            Placed {order.date} Â· <StatusBadge status={order.status} /> Â·{' '}
             <StatusBadge status={order.paymentStatus} />
           </p>
         </div>
@@ -453,7 +252,7 @@ export default function OrderDetails() {
             <Button variant="secondary">Back</Button>
           </Link>
           <Button variant="danger" onClick={handleDelete} disabled={deleting || busy}>
-            {deleting ? 'Deleting…' : 'Delete'}
+            {deleting ? 'Deletingâ€¦' : 'Delete'}
           </Button>
         </div>
       </div>
@@ -466,7 +265,7 @@ export default function OrderDetails() {
       {shipmentSuccess && (
         <div className="shipment-alert shipment-alert--success" role="status">
           <div className="shipment-alert__icon" aria-hidden="true">
-            ✓
+            âœ“
           </div>
           <div className="shipment-alert__content">
             <h4>Shipment Created Successfully</h4>
@@ -491,7 +290,7 @@ export default function OrderDetails() {
       {shipmentFailure && (
         <div className="shipment-alert shipment-alert--error" role="alert">
           <div className="shipment-alert__icon" aria-hidden="true">
-            ⚠
+            âš 
           </div>
           <div className="shipment-alert__content">
             <h4>{shipmentFailure.title}</h4>
@@ -581,7 +380,7 @@ export default function OrderDetails() {
               </div>
               <div>
                 <span>Total amount</span>
-                <strong>₹{order.total}</strong>
+                <strong>â‚¹{order.total}</strong>
               </div>
             </div>
           </section>
@@ -597,8 +396,8 @@ export default function OrderDetails() {
                   <p className="muted">Qty {order.quantity}</p>
                 </div>
                 <div className="order-details__product-price">
-                  <span>₹{order.unitPrice} each</span>
-                  <strong>₹{order.total}</strong>
+                  <span>â‚¹{order.unitPrice} each</span>
+                  <strong>â‚¹{order.total}</strong>
                 </div>
               </div>
             </div>
@@ -621,11 +420,11 @@ export default function OrderDetails() {
               </div>
               <div>
                 <span>Payment ID</span>
-                <strong>{order.paymentId || '—'}</strong>
+                <strong>{order.paymentId || 'â€”'}</strong>
               </div>
               <div>
                 <span>Total paid</span>
-                <strong>₹{order.total}</strong>
+                <strong>â‚¹{order.total}</strong>
               </div>
             </div>
           </section>
@@ -656,7 +455,7 @@ export default function OrderDetails() {
                 <span>AWB</span>
                 <div className="order-details__awb">
                   <strong className="order-details__awb-value">
-                    {order.waybill || '—'}
+                    {order.waybill || 'â€”'}
                   </strong>
                   {order.waybill ? (
                     <Button
@@ -675,89 +474,29 @@ export default function OrderDetails() {
               </div>
               <div>
                 <span>Delhivery shipment ID</span>
-                <strong>{order.delhiveryShipmentId || '—'}</strong>
+                <strong>{order.delhiveryShipmentId || 'â€”'}</strong>
               </div>
               <div>
                 <span>Shipment created</span>
                 <strong>{order.shipmentCreatedAtLabel}</strong>
               </div>
-              <div>
-                <span>Pickup status</span>
-                <strong>
-                  <StatusBadge status={order.pickupStatus || 'Not Requested'} />
-                </strong>
-              </div>
-              <div>
-                <span>Pickup requested</span>
-                <strong>{order.pickupRequestedAtLabel}</strong>
-              </div>
             </div>
 
-            <div className="panel__body order-details__tracking">
-              <h4>Tracking</h4>
-              <div className="order-details__fields">
-                <div>
-                  <span>Current Status</span>
-                  <strong>{order.trackingStatus || 'Not Available'}</strong>
-                </div>
-                <div>
-                  <span>Last Updated</span>
-                  <strong>{order.trackingUpdatedAtLabel || '—'}</strong>
-                </div>
-                <div>
-                  <span>AWB</span>
-                  <strong>{order.waybill || '—'}</strong>
-                </div>
-              </div>
-            </div>
-
-            <div className="panel__body fulfillment-timeline">
-              <h4>Shipment timeline</h4>
-              <ol className="fulfillment-timeline__list">
-                {timeline.map((stage) => (
-                  <li
-                    key={stage.id}
-                    className={[
-                      'fulfillment-timeline__item',
-                      stage.done ? 'fulfillment-timeline__item--done' : '',
-                      stage.current ? 'fulfillment-timeline__item--current' : '',
-                      stage.failed ? 'fulfillment-timeline__item--failed' : '',
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
+            {waybillReady ? (
+              <div className="panel__body">
+                <p className="form-hint">
+                  After AWB is created, use{' '}
+                  <a
+                    href="https://one.delhivery.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
                   >
-                    <span className="fulfillment-timeline__dot" aria-hidden="true">
-                      {stage.done ? '✓' : stage.failed ? '!' : ''}
-                    </span>
-                    <div>
-                      <strong>{stage.label}</strong>
-                      {stage.at ? <p>{stage.at}</p> : null}
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            </div>
-
-            {trackingEvents.length > 0 && (
-              <div className="panel__body order-details__tracking-raw">
-                <h4>Tracking events</h4>
-                <ul className="tracking-events">
-                  {trackingEvents.map((event, index) => (
-                    <li key={`${event.label}-${index}`}>
-                      <strong>{event.label}</strong>
-                      {event.at ? <span>{event.at}</span> : null}
-                    </li>
-                  ))}
-                </ul>
+                    Delhivery One
+                  </a>{' '}
+                  for pickup, labels, and remaining delivery logistics.
+                </p>
               </div>
-            )}
-
-            {trackingPayload && trackingEvents.length === 0 && (
-              <div className="panel__body order-details__tracking-raw">
-                <h4>Latest tracking response</h4>
-                <pre>{JSON.stringify(trackingPayload, null, 2)}</pre>
-              </div>
-            )}
+            ) : null}
           </section>
 
           <section className="panel">
@@ -803,7 +542,7 @@ export default function OrderDetails() {
               </div>
               <div className="form-actions">
                 <Button type="submit" disabled={saving || !hasChanges}>
-                  {saving ? 'Saving…' : 'Save'}
+                  {saving ? 'Savingâ€¦' : 'Save'}
                 </Button>
               </div>
             </form>
@@ -822,11 +561,11 @@ export default function OrderDetails() {
               </div>
               <div>
                 <span>Email</span>
-                <strong>{order.email || '—'}</strong>
+                <strong>{order.email || 'â€”'}</strong>
               </div>
               <div>
                 <span>Phone</span>
-                <strong>{order.phone || '—'}</strong>
+                <strong>{order.phone || 'â€”'}</strong>
               </div>
             </div>
           </section>
@@ -836,7 +575,7 @@ export default function OrderDetails() {
               <h3>Shipping address</h3>
             </div>
             <div className="panel__body">
-              <p className="order-details__address">{order.fullAddress || '—'}</p>
+              <p className="order-details__address">{order.fullAddress || 'â€”'}</p>
             </div>
           </section>
 
@@ -937,322 +676,17 @@ export default function OrderDetails() {
           <div>
             <span>Product</span>
             <strong>
-              {order.product} × {order.quantity}
+              {order.product} Ã— {order.quantity}
             </strong>
           </div>
           <div>
             <span>Amount</span>
-            <strong>₹{order.total}</strong>
+            <strong>â‚¹{order.total}</strong>
           </div>
           <div>
             <span>Shipping address</span>
             <strong>{order.fullAddress}</strong>
           </div>
-        </div>
-      </Modal>
-
-      {/* Edit shipment */}
-      <Modal
-        open={editOpen}
-        title="Edit shipment"
-        onClose={() => !busy && setEditOpen(false)}
-        footer={
-          <>
-            <Button
-              variant="secondary"
-              disabled={busy}
-              onClick={() => setEditOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              disabled={busy || actionLoading === 'update'}
-              onClick={handleUpdateShipment}
-            >
-              {actionLoading === 'update' ? 'Updating…' : 'Save changes'}
-            </Button>
-          </>
-        }
-      >
-        <div className="form-grid">
-          <div className="form-group form-group--full">
-            <label htmlFor="edit-name">Name</label>
-            <input
-              id="edit-name"
-              value={editForm.name}
-              onChange={(e) =>
-                setEditForm((f) => ({ ...f, name: e.target.value }))
-              }
-            />
-          </div>
-          <div className="form-group form-group--full">
-            <label htmlFor="edit-phone">Phone</label>
-            <input
-              id="edit-phone"
-              value={editForm.phone}
-              onChange={(e) =>
-                setEditForm((f) => ({ ...f, phone: e.target.value }))
-              }
-            />
-          </div>
-          <div className="form-group form-group--full">
-            <label htmlFor="edit-add">Address</label>
-            <textarea
-              id="edit-add"
-              value={editForm.add}
-              onChange={(e) =>
-                setEditForm((f) => ({ ...f, add: e.target.value }))
-              }
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="edit-cod">COD amount</label>
-            <input
-              id="edit-cod"
-              value={editForm.cod}
-              onChange={(e) =>
-                setEditForm((f) => ({ ...f, cod: e.target.value }))
-              }
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="edit-gm">Weight (gm)</label>
-            <input
-              id="edit-gm"
-              value={editForm.gm}
-              onChange={(e) =>
-                setEditForm((f) => ({ ...f, gm: e.target.value }))
-              }
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="edit-length">Length</label>
-            <input
-              id="edit-length"
-              value={editForm.shipment_length}
-              onChange={(e) =>
-                setEditForm((f) => ({ ...f, shipment_length: e.target.value }))
-              }
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="edit-width">Width</label>
-            <input
-              id="edit-width"
-              value={editForm.shipment_width}
-              onChange={(e) =>
-                setEditForm((f) => ({ ...f, shipment_width: e.target.value }))
-              }
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="edit-height">Height</label>
-            <input
-              id="edit-height"
-              value={editForm.shipment_height}
-              onChange={(e) =>
-                setEditForm((f) => ({ ...f, shipment_height: e.target.value }))
-              }
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="edit-pt">Payment type (pt)</label>
-            <input
-              id="edit-pt"
-              placeholder="COD / Pre-paid"
-              value={editForm.pt}
-              onChange={(e) =>
-                setEditForm((f) => ({ ...f, pt: e.target.value }))
-              }
-            />
-          </div>
-          <div className="form-group form-group--full">
-            <label htmlFor="edit-product">Product details</label>
-            <input
-              id="edit-product"
-              value={editForm.product_details}
-              onChange={(e) =>
-                setEditForm((f) => ({ ...f, product_details: e.target.value }))
-              }
-            />
-          </div>
-          <p className="form-hint form-group--full">
-            Only filled fields are sent. Waybill is required and added automatically.
-          </p>
-        </div>
-      </Modal>
-
-      {/* Pickup */}
-      <Modal
-        open={pickupOpen}
-        title="Request pickup"
-        onClose={() => !busy && setPickupOpen(false)}
-        footer={
-          <>
-            <Button
-              variant="secondary"
-              disabled={busy}
-              onClick={() => setPickupOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              disabled={busy || actionLoading === 'pickup'}
-              onClick={handleRequestPickup}
-            >
-              {actionLoading === 'pickup' ? 'Requesting…' : 'Request pickup'}
-            </Button>
-          </>
-        }
-      >
-        <div className="form-grid">
-          <div className="form-group">
-            <label htmlFor="pickup-date">Pickup date</label>
-            <input
-              id="pickup-date"
-              type="date"
-              value={pickupForm.pickup_date}
-              onChange={(e) =>
-                setPickupForm((f) => ({ ...f, pickup_date: e.target.value }))
-              }
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="pickup-time">Pickup time</label>
-            <input
-              id="pickup-time"
-              type="time"
-              step="1"
-              value={pickupForm.pickup_time}
-              onChange={(e) =>
-                setPickupForm((f) => ({
-                  ...f,
-                  pickup_time: e.target.value.length === 5
-                    ? `${e.target.value}:00`
-                    : e.target.value,
-                }))
-              }
-              required
-            />
-          </div>
-          <div className="form-group form-group--full">
-            <label htmlFor="pickup-location">Pickup location</label>
-            <input
-              id="pickup-location"
-              value={pickupForm.pickup_location}
-              onChange={(e) =>
-                setPickupForm((f) => ({
-                  ...f,
-                  pickup_location: e.target.value,
-                }))
-              }
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="pickup-count">Expected package count</label>
-            <input
-              id="pickup-count"
-              type="number"
-              min="1"
-              value={pickupForm.expected_package_count}
-              onChange={(e) =>
-                setPickupForm((f) => ({
-                  ...f,
-                  expected_package_count: e.target.value,
-                }))
-              }
-            />
-          </div>
-        </div>
-      </Modal>
-
-      {/* NDR */}
-      <Modal
-        open={ndrOpen}
-        title="NDR action"
-        onClose={() => !busy && setNdrOpen(false)}
-        footer={
-          <>
-            <Button
-              variant="secondary"
-              disabled={busy}
-              onClick={() => setNdrOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              disabled={busy || actionLoading === 'ndr'}
-              onClick={handleSubmitNdr}
-            >
-              {actionLoading === 'ndr' ? 'Submitting…' : 'Submit NDR'}
-            </Button>
-          </>
-        }
-      >
-        <div className="form-grid">
-          <div className="form-group form-group--full">
-            <label htmlFor="ndr-act">Action</label>
-            <select
-              id="ndr-act"
-              value={ndrForm.act}
-              onChange={(e) =>
-                setNdrForm((f) => ({ ...f, act: e.target.value }))
-              }
-            >
-              <option value="RE-ATTEMPT">RE-ATTEMPT</option>
-              <option value="DEFER_DLV">DEFER_DLV</option>
-              <option value="EDIT_DETAILS">EDIT_DETAILS</option>
-            </select>
-          </div>
-          {ndrForm.act === 'DEFER_DLV' && (
-            <div className="form-group form-group--full">
-              <label htmlFor="ndr-date">Deferred date</label>
-              <input
-                id="ndr-date"
-                type="date"
-                value={ndrForm.deferred_date}
-                onChange={(e) =>
-                  setNdrForm((f) => ({ ...f, deferred_date: e.target.value }))
-                }
-              />
-            </div>
-          )}
-          {ndrForm.act === 'EDIT_DETAILS' && (
-            <>
-              <div className="form-group form-group--full">
-                <label htmlFor="ndr-name">Name</label>
-                <input
-                  id="ndr-name"
-                  value={ndrForm.name}
-                  onChange={(e) =>
-                    setNdrForm((f) => ({ ...f, name: e.target.value }))
-                  }
-                />
-              </div>
-              <div className="form-group form-group--full">
-                <label htmlFor="ndr-phone">Phone</label>
-                <input
-                  id="ndr-phone"
-                  value={ndrForm.phone}
-                  onChange={(e) =>
-                    setNdrForm((f) => ({ ...f, phone: e.target.value }))
-                  }
-                />
-              </div>
-              <div className="form-group form-group--full">
-                <label htmlFor="ndr-add">Address</label>
-                <textarea
-                  id="ndr-add"
-                  value={ndrForm.add}
-                  onChange={(e) =>
-                    setNdrForm((f) => ({ ...f, add: e.target.value }))
-                  }
-                />
-              </div>
-            </>
-          )}
         </div>
       </Modal>
     </div>

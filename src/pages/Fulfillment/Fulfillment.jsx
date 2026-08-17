@@ -18,13 +18,8 @@ const PAGE_SIZE = 10;
 const BUCKETS = [
   { id: 'all', label: 'All shipments' },
   { id: 'not_created', label: 'Not Created' },
-  { id: 'created', label: 'Shipment Created' },
-  { id: 'label', label: 'Label Generated' },
-  { id: 'pickup', label: 'Pickup Requested' },
-  { id: 'transit', label: 'In Transit' },
-  { id: 'ofd', label: 'Out for Delivery' },
-  { id: 'delivered', label: 'Delivered' },
-  { id: 'ndr', label: 'NDR / Exceptions' },
+  { id: 'created', label: 'Created' },
+  { id: 'failed', label: 'Failed' },
 ];
 
 const VALID_BUCKETS = new Set(BUCKETS.map((b) => b.id));
@@ -39,7 +34,6 @@ export default function Fulfillment() {
   const [search, setSearch] = useState('');
   const [paymentFilter, setPaymentFilter] = useState('All');
   const [shipmentFilter, setShipmentFilter] = useState('All');
-  const [trackingFilter, setTrackingFilter] = useState('All');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [page, setPage] = useState(1);
@@ -51,10 +45,7 @@ export default function Fulfillment() {
     if (VALID_BUCKETS.has(bucketParam)) {
       setBucket(bucketParam);
       setMetricFilter('');
-    } else if (
-      metricParam === 'shipments_created' ||
-      metricParam === 'in_transit'
-    ) {
+    } else if (metricParam === 'shipments_created') {
       setMetricFilter(metricParam);
       setBucket('all');
     }
@@ -87,15 +78,6 @@ export default function Fulfillment() {
     return ['All', ...Array.from(set).sort()];
   }, [orders]);
 
-  const trackingOptions = useMemo(() => {
-    const set = new Set(
-      orders
-        .map((o) => o.trackingStatus)
-        .filter((v) => v && String(v).trim())
-    );
-    return ['All', 'Not Available', ...Array.from(set).sort()];
-  }, [orders]);
-
   const bucketCounts = useMemo(() => {
     const counts = { all: orders.length };
     BUCKETS.forEach((b) => {
@@ -122,13 +104,6 @@ export default function Fulfillment() {
       const matchesShipment =
         shipmentFilter === 'All' || shipLabel === shipmentFilter;
 
-      const trackValue = order.trackingStatus || 'Not Available';
-      const matchesTracking =
-        trackingFilter === 'All' ||
-        (trackingFilter === 'Not Available'
-          ? !order.trackingStatus
-          : trackValue === trackingFilter);
-
       const created = order.createdAt ? new Date(order.createdAt) : null;
       const matchesFrom =
         !dateFrom || (created && created >= new Date(`${dateFrom}T00:00:00`));
@@ -145,7 +120,6 @@ export default function Fulfillment() {
       return (
         matchesPayment &&
         matchesShipment &&
-        matchesTracking &&
         matchesFrom &&
         matchesTo &&
         matchesSearch
@@ -158,7 +132,6 @@ export default function Fulfillment() {
     search,
     paymentFilter,
     shipmentFilter,
-    trackingFilter,
     dateFrom,
     dateTo,
   ]);
@@ -172,16 +145,7 @@ export default function Fulfillment() {
 
   useEffect(() => {
     setPage(1);
-  }, [
-    bucket,
-    metricFilter,
-    search,
-    paymentFilter,
-    shipmentFilter,
-    trackingFilter,
-    dateFrom,
-    dateTo,
-  ]);
+  }, [bucket, metricFilter, search, paymentFilter, shipmentFilter, dateFrom, dateTo]);
 
   const columns = [
     { key: 'orderNumber', label: 'Order' },
@@ -202,20 +166,8 @@ export default function Fulfillment() {
     },
     {
       key: 'shipment',
-      label: 'Shipment Status',
+      label: 'Delhivery',
       render: (row) => <StatusBadge status={fulfillmentListLabel(row)} />,
-    },
-    {
-      key: 'trackingStatus',
-      label: 'Tracking Status',
-      render: (row) => row.trackingStatus || 'Not Available',
-    },
-    {
-      key: 'pickupStatus',
-      label: 'Pickup Status',
-      render: (row) => (
-        <StatusBadge status={row.pickupStatus || 'Not Requested'} />
-      ),
     },
     {
       key: 'date',
@@ -243,18 +195,14 @@ export default function Fulfillment() {
   const to = Math.min(currentPage * PAGE_SIZE, filtered.length);
 
   const metricLabel =
-    metricFilter === 'shipments_created'
-      ? 'Shipments created'
-      : metricFilter === 'in_transit'
-        ? 'In transit / picked up / out for delivery'
-        : null;
+    metricFilter === 'shipments_created' ? 'Shipments created' : null;
 
   return (
     <div className="page">
       <div className="page__header">
         <div className="page__header-text">
           <h2>Fulfillment</h2>
-          <p>Operate Delhivery shipments from real order database state</p>
+          <p>Send orders to Delhivery. After AWB is created, manage logistics in Delhivery One.</p>
         </div>
         <Button
           variant="secondary"
@@ -344,17 +292,6 @@ export default function Fulfillment() {
               {shipmentOptions.map((opt) => (
                 <option key={opt} value={opt}>
                   {opt === 'All' ? 'All shipment statuses' : opt}
-                </option>
-              ))}
-            </select>
-            <select
-              className="toolbar__select"
-              value={trackingFilter}
-              onChange={(e) => setTrackingFilter(e.target.value)}
-            >
-              {trackingOptions.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt === 'All' ? 'All tracking statuses' : opt}
                 </option>
               ))}
             </select>

@@ -1,4 +1,4 @@
-/** Shipment / fulfillment helpers for UI gating */
+/** Shipment helpers for Send to Delhivery gating */
 
 export function hasWaybill(order) {
   return Boolean(order?.waybill);
@@ -22,84 +22,6 @@ export function canCreateShipment(order) {
     return false;
   }
   return true;
-}
-
-export function looksLikeNdr(order) {
-  const ship = String(order?.shipmentStatus || '').toLowerCase();
-  const track = String(order?.trackingStatus || '').toLowerCase();
-  return (
-    hasWaybill(order) &&
-    (ship.includes('ndr') ||
-      track.includes('ndr') ||
-      track.includes('undelivered') ||
-      track.includes('failed delivery') ||
-      track.includes('exception'))
-  );
-}
-
-function normalizeLabelCandidate(value) {
-  if (value == null) return null;
-  if (typeof value === 'object') {
-    return (
-      value.url ||
-      value.label_url ||
-      value.pdf_url ||
-      value.pdf ||
-      value.download_url ||
-      null
-    );
-  }
-  if (typeof value !== 'string') return null;
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  if (/^https?:\/\//i.test(trimmed) || trimmed.startsWith('data:')) {
-    return trimmed;
-  }
-  // Raw base64 PDF from backend — wrap as data URL for view/download
-  if (/^JVBER/i.test(trimmed) || (trimmed.length > 200 && !trimmed.includes(' '))) {
-    return `data:application/pdf;base64,${trimmed}`;
-  }
-  return null;
-}
-
-export function extractLabelUrl(labelResponse, existingLabelData) {
-  const candidates = [
-    labelResponse?.url,
-    labelResponse?.label_url,
-    labelResponse?.pdf_url,
-    labelResponse?.download_url,
-    labelResponse?.data?.url,
-    labelResponse?.data?.label_url,
-    labelResponse?.data?.pdf_url,
-    labelResponse?.label,
-    labelResponse?.packages?.[0]?.pdf_download,
-    labelResponse?.packages?.[0]?.pdf_download_link,
-    typeof labelResponse?.data === 'string' ? labelResponse.data : null,
-    existingLabelData,
-  ];
-
-  for (const value of candidates) {
-    const url = normalizeLabelCandidate(value);
-    if (url) return url;
-  }
-  return null;
-}
-
-/** Open or trigger download for a label URL / data URI. */
-export function openLabelAsset(url, { download = false, filename = 'shipping-label.pdf' } = {}) {
-  if (!url) return;
-  if (download) {
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.rel = 'noopener';
-    a.target = '_blank';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    return;
-  }
-  window.open(url, '_blank', 'noopener,noreferrer');
 }
 
 export function extractWaybillFromResponse(response) {
