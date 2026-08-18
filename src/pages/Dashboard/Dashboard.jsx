@@ -232,18 +232,30 @@ export default function Dashboard() {
       setError('');
       try {
         const defaultRange = getThisMonthRange();
-        const [ordersData, dashboardStats] = await Promise.all([
+        const [ordersResult, statsResult] = await Promise.allSettled([
           getOrders(),
           getDashboardStats({ from: defaultRange.from, to: defaultRange.to }),
         ]);
         if (!active) return;
-        setOrders(ordersData);
-        setRecent(ordersData.slice(0, 8));
-        setStats(computeStats(ordersData));
+
+        if (ordersResult.status === 'fulfilled') {
+          const ordersData = ordersResult.value;
+          setOrders(ordersData);
+          setRecent(ordersData.slice(0, 8));
+          setStats(computeStats(ordersData));
+        } else if (ordersResult.reason?.status !== 401) {
+          setError(ordersResult.reason?.message || 'Failed to load orders');
+        }
+
         setMonthValue(defaultRange.monthValue || '');
         setCustomFrom(defaultRange.from);
         setCustomTo(defaultRange.to);
-        applyStats(dashboardStats, defaultRange.label);
+
+        if (statsResult.status === 'fulfilled') {
+          applyStats(statsResult.value, defaultRange.label);
+        } else if (statsResult.reason?.status !== 401) {
+          setError((prev) => prev || statsResult.reason?.message || 'Failed to load dashboard stats');
+        }
       } catch (err) {
         if (!active) return;
         if (err.status !== 401) {
@@ -448,7 +460,7 @@ export default function Dashboard() {
                   setCustomFrom(range.from);
                   setCustomTo(range.to);
                   loadDashboard(range).catch((err) => {
-                    if (err.status !== 401) setError(err.message || 'Failed to load dashboard');
+                    if (err.status !== 401) setError(err.message || 'Failed to load dashboard stats');
                   });
                 }}
               >
@@ -470,7 +482,7 @@ export default function Dashboard() {
                   setCustomFrom(range.from);
                   setCustomTo(range.to);
                   loadDashboard(range).catch((err) => {
-                    if (err.status !== 401) setError(err.message || 'Failed to load dashboard');
+                    if (err.status !== 401) setError(err.message || 'Failed to load dashboard stats');
                   });
                 }}
               />
@@ -504,7 +516,7 @@ export default function Dashboard() {
                   to: customTo || null,
                   label,
                 }).catch((err) => {
-                  if (err.status !== 401) setError(err.message || 'Failed to load dashboard');
+                  if (err.status !== 401) setError(err.message || 'Failed to load dashboard stats');
                 });
               }}
             >
