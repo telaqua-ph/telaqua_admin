@@ -4,8 +4,22 @@
   gap: 18px;
 }
 
+.dashboard__stats--sales {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.dashboard__section-note {
+  margin-top: 6px;
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+}
+
 @media (max-width: 1100px) {
   .dashboard__stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .dashboard__stats--sales {
     grid-template-columns: repeat(2, 1fr);
   }
 }

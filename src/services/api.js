@@ -277,6 +277,18 @@ export async function getOrderStats() {
   };
 }
 
+export async function getDashboardSalesOverview() {
+  const data = await apiRequest('/api/dashboard/stats');
+  return {
+    devicesSold: Number(data?.devicesSold || 0),
+    revenueReceived: Number(data?.revenueReceived || 0),
+    todayDevicesSold: Number(data?.todayDevicesSold || 0),
+    todayRevenue: Number(data?.todayRevenue || 0),
+    monthDevicesSold: Number(data?.monthDevicesSold || 0),
+    monthRevenue: Number(data?.monthRevenue || 0),
+  };
+}
+
 export function getOrderStatuses() {
   return [...ORDER_STATUSES];
 }

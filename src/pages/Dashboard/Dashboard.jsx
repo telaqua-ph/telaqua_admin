@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getOrders } from '../../services/api';
+import { getDashboardSalesOverview, getOrders } from '../../services/api';
 import { StatCard } from '../../components/Cards';
 import { DataTable } from '../../components/Tables';
 import { Button } from '../../components/Buttons';
@@ -52,6 +52,14 @@ function computeStats(orders) {
   };
 }
 
+function formatInr(value) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return '₹0';
+  return `₹${amount.toLocaleString('en-IN', {
+    maximumFractionDigits: 2,
+  })}`;
+}
+
 const CARD_DEFS = [
   { key: 'total', valueKey: 'total', icon: icons.total, accent: 'orange' },
   { key: 'new', valueKey: 'new', icon: icons.box, accent: 'blue' },
@@ -70,9 +78,37 @@ const CARD_DEFS = [
   },
 ];
 
+const SALES_CARD_DEFS = [
+  { key: 'devicesSold', title: 'Total Devices Sold', accent: 'blue', icon: icons.box },
+  {
+    key: 'revenueReceived',
+    title: 'Total Revenue Received',
+    accent: 'green',
+    icon: icons.pay,
+    format: formatInr,
+  },
+  { key: 'todayDevicesSold', title: "Today's Devices Sold", accent: 'orange', icon: icons.box },
+  {
+    key: 'todayRevenue',
+    title: "Today's Revenue",
+    accent: 'green',
+    icon: icons.pay,
+    format: formatInr,
+  },
+  { key: 'monthDevicesSold', title: "This Month's Devices Sold", accent: 'amber', icon: icons.box },
+  {
+    key: 'monthRevenue',
+    title: "This Month's Revenue",
+    accent: 'green',
+    icon: icons.pay,
+    format: formatInr,
+  },
+];
+
 export default function Dashboard() {
   const [orders, setOrders] = useState([]);
   const [stats, setStats] = useState(null);
+  const [sales, setSales] = useState(null);
   const [recent, setRecent] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -83,11 +119,15 @@ export default function Dashboard() {
       setLoading(true);
       setError('');
       try {
-        const ordersData = await getOrders();
+        const [ordersData, salesOverview] = await Promise.all([
+          getOrders(),
+          getDashboardSalesOverview(),
+        ]);
         if (!active) return;
         setOrders(ordersData);
         setRecent(ordersData.slice(0, 8));
         setStats(computeStats(ordersData));
+        setSales(salesOverview);
       } catch (err) {
         if (!active) return;
         if (err.status !== 401) {
@@ -184,6 +224,28 @@ export default function Dashboard() {
           );
         })}
       </div>
+
+      <section className="panel">
+        <div className="panel__header">
+          <div>
+            <h3>Sales overview</h3>
+            <p className="dashboard__section-note">
+              Based on backend-confirmed paid orders and actual paid amounts.
+            </p>
+          </div>
+        </div>
+        <div className="dashboard__stats dashboard__stats--sales">
+          {SALES_CARD_DEFS.map((card) => (
+            <StatCard
+              key={card.key}
+              title={card.title}
+              value={card.format ? card.format(sales?.[card.key] ?? 0) : sales?.[card.key] ?? 0}
+              icon={card.icon}
+              accent={card.accent}
+            />
+          ))}
+        </div>
+      </section>
 
       <section className="panel">
         <div className="panel__header">
