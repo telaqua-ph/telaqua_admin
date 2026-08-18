@@ -4,13 +4,45 @@
   gap: 18px;
 }
 
-.dashboard__stats--sales {
-  grid-template-columns: repeat(3, 1fr);
+.dashboard__stats--pair {
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
 }
 
 .dashboard__stats--analysis {
   grid-template-columns: repeat(3, 1fr);
-  margin-top: 18px;
+}
+
+.dashboard__sales-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px;
+}
+
+.dashboard__sales-groups {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.dashboard__sales-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: #fafafa;
+}
+
+.dashboard__sales-group-label {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
 }
 
 .dashboard__section-note {
@@ -49,9 +81,12 @@
 }
 
 .dashboard__sales-filters {
-  margin-top: 20px;
   padding-top: 20px;
   border-top: 1px solid var(--color-border);
+}
+
+.dashboard__sales-filters .dashboard__analysis-label {
+  margin-bottom: 10px;
 }
 
 .dashboard__filter-group {
@@ -87,7 +122,7 @@
 }
 
 .dashboard__analysis-summary {
-  margin-top: 18px;
+  padding-top: 4px;
 }
 
 .dashboard__analysis-summary h4 {
@@ -110,8 +145,8 @@
     grid-template-columns: repeat(2, 1fr);
   }
 
-  .dashboard__stats--sales {
-    grid-template-columns: repeat(2, 1fr);
+  .dashboard__sales-groups {
+    grid-template-columns: 1fr;
   }
 
   .dashboard__stats--analysis {
@@ -125,7 +160,7 @@
   }
 
   .dashboard__stats--analysis,
-  .dashboard__stats--sales {
+  .dashboard__stats--pair {
     grid-template-columns: 1fr;
   }
 
