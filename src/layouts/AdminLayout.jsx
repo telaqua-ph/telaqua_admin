@@ -8,6 +8,7 @@ const titles = {
   '/': 'Dashboard',
   '/orders': 'Orders',
   '/fulfillment': 'Fulfillment',
+  '/inventory': 'Inventory',
   '/promo-codes': 'Discounts',
   '/products': 'Products',
   '/products/add': 'Add Product',

@@ -55,6 +55,13 @@
   text-overflow: ellipsis;
 }
 
+.navbar__right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
 .navbar__profile {
   display: flex;
   align-items: center;

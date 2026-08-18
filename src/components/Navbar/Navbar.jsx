@@ -1,4 +1,5 @@
 import { useAuth } from '../../context/AuthContext';
+import NotificationBell from '../NotificationBell';
 import './Navbar.css';
 
 export default function Navbar({ title, onMenuClick }) {
@@ -30,11 +31,14 @@ export default function Navbar({ title, onMenuClick }) {
         <h1 className="navbar__title">{title}</h1>
       </div>
 
-      <div className="navbar__profile">
-        <div className="navbar__avatar">{initials || 'AD'}</div>
-        <div className="navbar__profile-text">
-          <p className="navbar__name">{displayName}</p>
-          <p className="navbar__role">{displayEmail}</p>
+      <div className="navbar__right">
+        <NotificationBell />
+        <div className="navbar__profile">
+          <div className="navbar__avatar">{initials || 'AD'}</div>
+          <div className="navbar__profile-text">
+            <p className="navbar__name">{displayName}</p>
+            <p className="navbar__role">{displayEmail}</p>
+          </div>
         </div>
       </div>
     </header>

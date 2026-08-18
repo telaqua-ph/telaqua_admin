@@ -19,6 +19,8 @@ const statusMap = {
   Scheduled: 'processing',
   Expired: 'payment-failed',
   'Out of Stock': 'new',
+  'Low Stock': 'payment-failed',
+  'In Stock': 'delivered',
   Paid: 'payment-paid',
   paid: 'payment-paid',
   Failed: 'payment-failed',
