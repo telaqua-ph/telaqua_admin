@@ -167,7 +167,7 @@ export default function OrderDetails() {
 
       setConfirmOpen(false);
       setShipmentSuccess({
-        waybill: waybill || refreshed?.waybill || 'â€”',
+        waybill: waybill || refreshed?.waybill || '—',
         status: refreshed?.shipmentStatus || 'Created',
         createdAt: refreshed?.shipmentCreatedAtLabel || 'Just now',
       });
@@ -222,7 +222,7 @@ export default function OrderDetails() {
   };
 
   if (loading) {
-    return <div className="loading-state">Loading orderâ€¦</div>;
+    return <div className="loading-state">Loading order…</div>;
   }
 
   if (!order) {
@@ -245,7 +245,7 @@ export default function OrderDetails() {
           <p className="order-details__eyebrow">Order</p>
           <h2>{order.orderNumber}</h2>
           <p>
-            Placed {order.date} Â· <StatusBadge status={order.status} /> Â·{' '}
+            Placed {order.date} · <StatusBadge status={order.status} /> ·{' '}
             <StatusBadge status={order.paymentStatus} />
           </p>
         </div>
@@ -254,7 +254,7 @@ export default function OrderDetails() {
             <Button variant="secondary">Back</Button>
           </Link>
           <Button variant="danger" onClick={handleDelete} disabled={deleting || busy}>
-            {deleting ? 'Deletingâ€¦' : 'Delete'}
+            {deleting ? 'Deleting…' : 'Delete'}
           </Button>
         </div>
       </div>
@@ -267,7 +267,7 @@ export default function OrderDetails() {
       {shipmentSuccess && (
         <div className="shipment-alert shipment-alert--success" role="status">
           <div className="shipment-alert__icon" aria-hidden="true">
-            âœ“
+            ✓
           </div>
           <div className="shipment-alert__content">
             <h4>Shipment Created Successfully</h4>
@@ -292,7 +292,7 @@ export default function OrderDetails() {
       {shipmentFailure && (
         <div className="shipment-alert shipment-alert--error" role="alert">
           <div className="shipment-alert__icon" aria-hidden="true">
-            âš 
+            ⚠
           </div>
           <div className="shipment-alert__content">
             <h4>{shipmentFailure.title}</h4>
@@ -382,7 +382,7 @@ export default function OrderDetails() {
               </div>
               <div>
                 <span>Total amount</span>
-                <strong>â‚¹{order.total}</strong>
+                <strong>₹{order.total}</strong>
               </div>
             </div>
           </section>
@@ -398,8 +398,8 @@ export default function OrderDetails() {
                   <p className="muted">Qty {order.quantity}</p>
                 </div>
                 <div className="order-details__product-price">
-                  <span>â‚¹{order.unitPrice} each</span>
-                  <strong>â‚¹{order.total}</strong>
+                  <span>₹{order.unitPrice} each</span>
+                  <strong>₹{order.total}</strong>
                 </div>
               </div>
             </div>
@@ -422,11 +422,11 @@ export default function OrderDetails() {
               </div>
               <div>
                 <span>Payment ID</span>
-                <strong>{order.paymentId || 'â€”'}</strong>
+                <strong>{order.paymentId || '—'}</strong>
               </div>
               <div>
                 <span>Total paid</span>
-                <strong>â‚¹{order.total}</strong>
+                <strong>₹{order.total}</strong>
               </div>
             </div>
           </section>
@@ -457,7 +457,7 @@ export default function OrderDetails() {
                 <span>AWB</span>
                 <div className="order-details__awb">
                   <strong className="order-details__awb-value">
-                    {order.waybill || 'â€”'}
+                    {order.waybill || '—'}
                   </strong>
                   {order.waybill ? (
                     <Button
@@ -476,7 +476,7 @@ export default function OrderDetails() {
               </div>
               <div>
                 <span>Delhivery shipment ID</span>
-                <strong>{order.delhiveryShipmentId || 'â€”'}</strong>
+                <strong>{order.delhiveryShipmentId || '—'}</strong>
               </div>
               <div>
                 <span>Shipment created</span>
@@ -544,7 +544,7 @@ export default function OrderDetails() {
               </div>
               <div className="form-actions">
                 <Button type="submit" disabled={saving || !hasChanges}>
-                  {saving ? 'Savingâ€¦' : 'Save'}
+                  {saving ? 'Saving…' : 'Save'}
                 </Button>
               </div>
             </form>
@@ -563,11 +563,11 @@ export default function OrderDetails() {
               </div>
               <div>
                 <span>Email</span>
-                <strong>{order.email || 'â€”'}</strong>
+                <strong>{order.email || '—'}</strong>
               </div>
               <div>
                 <span>Phone</span>
-                <strong>{order.phone || 'â€”'}</strong>
+                <strong>{order.phone || '—'}</strong>
               </div>
             </div>
           </section>
@@ -577,7 +577,7 @@ export default function OrderDetails() {
               <h3>Shipping address</h3>
             </div>
             <div className="panel__body">
-              <p className="order-details__address">{order.fullAddress || 'â€”'}</p>
+              <p className="order-details__address">{order.fullAddress || '—'}</p>
             </div>
           </section>
 
@@ -678,12 +678,12 @@ export default function OrderDetails() {
           <div>
             <span>Product</span>
             <strong>
-              {order.product} Ã— {order.quantity}
+              {order.product} × {order.quantity}
             </strong>
           </div>
           <div>
             <span>Amount</span>
-            <strong>â‚¹{order.total}</strong>
+            <strong>₹{order.total}</strong>
           </div>
           <div>
             <span>Shipping address</span>
