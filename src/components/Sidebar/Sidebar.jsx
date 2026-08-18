@@ -1,5 +1,7 @@
-import { NavLink, useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useState } from 'react';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { getDashboardStats } from '../../services/api';
 import './Sidebar.css';
 
 const navItems = [
@@ -86,6 +88,29 @@ const navItems = [
 export default function Sidebar({ open, onClose }) {
   const { logout } = useAuth();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const [unseenOrders, setUnseenOrders] = useState(0);
+
+  const loadStats = useCallback(async () => {
+    try {
+      const stats = await getDashboardStats();
+      setUnseenOrders(stats.unseenOrders || 0);
+    } catch {
+      /* ignore sidebar badge refresh failures */
+    }
+  }, []);
+
+  useEffect(() => {
+    loadStats();
+  }, [loadStats, pathname]);
+
+  useEffect(() => {
+    const handleSeenChanged = () => {
+      loadStats();
+    };
+    window.addEventListener('orders:seen-changed', handleSeenChanged);
+    return () => window.removeEventListener('orders:seen-changed', handleSeenChanged);
+  }, [loadStats]);
 
   const handleLogout = () => {
     logout();
@@ -120,7 +145,10 @@ export default function Sidebar({ open, onClose }) {
               onClick={onClose}
             >
               <span className="sidebar__link-icon">{item.icon}</span>
-              {item.label}
+              <span className="sidebar__link-text">{item.label}</span>
+              {item.to === '/orders' && unseenOrders > 0 ? (
+                <span className="sidebar__badge">{unseenOrders}</span>
+              ) : null}
             </NavLink>
           ))}
         </nav>

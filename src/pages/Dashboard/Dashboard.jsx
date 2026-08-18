@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getDashboardSalesOverview, getOrders } from '../../services/api';
+import { getDashboardStats, getOrders } from '../../services/api';
 import { StatCard } from '../../components/Cards';
 import { DataTable } from '../../components/Tables';
 import { Button } from '../../components/Buttons';
@@ -60,6 +60,96 @@ function formatInr(value) {
   })}`;
 }
 
+function toDateInput(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 10);
+}
+
+function formatDateLabel(value) {
+  if (!value) return '';
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+function getTodayRange() {
+  const today = toDateInput(new Date());
+  return { from: today, to: today, label: 'Today' };
+}
+
+function getYesterdayRange() {
+  const date = new Date();
+  date.setDate(date.getDate() - 1);
+  const value = toDateInput(date);
+  return { from: value, to: value, label: 'Yesterday' };
+}
+
+function getThisWeekRange() {
+  const end = new Date();
+  const start = new Date();
+  const day = start.getDay();
+  const offset = day === 0 ? 6 : day - 1;
+  start.setDate(start.getDate() - offset);
+  return {
+    from: toDateInput(start),
+    to: toDateInput(end),
+    label: 'This Week',
+  };
+}
+
+function getThisMonthRange() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  return {
+    from: toDateInput(start),
+    to: toDateInput(end),
+    label: now.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }),
+    monthValue: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`,
+  };
+}
+
+function getLastMonthRange() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const end = new Date(now.getFullYear(), now.getMonth(), 0);
+  return {
+    from: toDateInput(start),
+    to: toDateInput(end),
+    label: start.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }),
+    monthValue: `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`,
+  };
+}
+
+function getMonthRange(value) {
+  if (!/^\d{4}-\d{2}$/.test(String(value || ''))) return getThisMonthRange();
+  const [yearRaw, monthRaw] = value.split('-');
+  const year = Number(yearRaw);
+  const month = Number(monthRaw);
+  const start = new Date(year, month - 1, 1);
+  const end = new Date(year, month, 0);
+  return {
+    from: toDateInput(start),
+    to: toDateInput(end),
+    label: start.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }),
+    monthValue: value,
+  };
+}
+
+function describeRange(from, to, fallback = 'Selected Period') {
+  if (!from && !to) return fallback;
+  if (from && to && from === to) return formatDateLabel(from);
+  if (from && to) return `${formatDateLabel(from)} – ${formatDateLabel(to)}`;
+  if (from) return `${formatDateLabel(from)} onwards`;
+  return `Up to ${formatDateLabel(to)}`;
+}
+
 const CARD_DEFS = [
   { key: 'total', valueKey: 'total', icon: icons.total, accent: 'orange' },
   { key: 'new', valueKey: 'new', icon: icons.box, accent: 'blue' },
@@ -109,9 +199,31 @@ export default function Dashboard() {
   const [orders, setOrders] = useState([]);
   const [stats, setStats] = useState(null);
   const [sales, setSales] = useState(null);
+  const [analysis, setAnalysis] = useState(null);
+  const [unseenOrders, setUnseenOrders] = useState(0);
   const [recent, setRecent] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedRangeLabel, setSelectedRangeLabel] = useState('This Month');
+  const [monthValue, setMonthValue] = useState(() => getThisMonthRange().monthValue || '');
+  const [customFrom, setCustomFrom] = useState(() => getThisMonthRange().from);
+  const [customTo, setCustomTo] = useState(() => getThisMonthRange().to);
+
+  const applyStats = useCallback((dashboardStats, rangeLabel) => {
+    setSales(dashboardStats);
+    setAnalysis(dashboardStats.analysis);
+    setUnseenOrders(dashboardStats.unseenOrders || 0);
+    setSelectedRangeLabel(rangeLabel || describeRange(dashboardStats.analysis?.from, dashboardStats.analysis?.to));
+  }, []);
+
+  const loadDashboard = useCallback(async (range) => {
+    const dashboardStats = await getDashboardStats({
+      from: range?.from,
+      to: range?.to,
+    });
+    applyStats(dashboardStats, range?.label || describeRange(range?.from, range?.to, 'Selected Period'));
+    return dashboardStats;
+  }, [applyStats]);
 
   useEffect(() => {
     let active = true;
@@ -119,15 +231,19 @@ export default function Dashboard() {
       setLoading(true);
       setError('');
       try {
-        const [ordersData, salesOverview] = await Promise.all([
+        const defaultRange = getThisMonthRange();
+        const [ordersData, dashboardStats] = await Promise.all([
           getOrders(),
-          getDashboardSalesOverview(),
+          getDashboardStats({ from: defaultRange.from, to: defaultRange.to }),
         ]);
         if (!active) return;
         setOrders(ordersData);
         setRecent(ordersData.slice(0, 8));
         setStats(computeStats(ordersData));
-        setSales(salesOverview);
+        setMonthValue(defaultRange.monthValue || '');
+        setCustomFrom(defaultRange.from);
+        setCustomTo(defaultRange.to);
+        applyStats(dashboardStats, defaultRange.label);
       } catch (err) {
         if (!active) return;
         if (err.status !== 401) {
@@ -140,7 +256,24 @@ export default function Dashboard() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [applyStats]);
+
+  useEffect(() => {
+    const handleSeenChanged = async () => {
+      try {
+        const range = {
+          from: analysis?.from || customFrom,
+          to: analysis?.to || customTo,
+          label: selectedRangeLabel,
+        };
+        await loadDashboard(range);
+      } catch {
+        /* ignore transient refresh errors */
+      }
+    };
+    window.addEventListener('orders:seen-changed', handleSeenChanged);
+    return () => window.removeEventListener('orders:seen-changed', handleSeenChanged);
+  }, [analysis?.from, analysis?.to, customFrom, customTo, loadDashboard, selectedRangeLabel]);
 
   const handleDownloadMetric = (metricKey) => {
     const metric = DASHBOARD_METRICS[metricKey];
@@ -150,7 +283,16 @@ export default function Dashboard() {
   };
 
   const columns = [
-    { key: 'orderNumber', label: 'Order' },
+    {
+      key: 'orderNumber',
+      label: 'Order',
+      render: (row) => (
+        <div className="dashboard__order-cell">
+          <strong>{row.orderNumber}</strong>
+          {!row.isSeen && <span className="dashboard__new-badge">NEW</span>}
+        </div>
+      ),
+    },
     { key: 'customerName', label: 'Customer' },
     {
       key: 'total',
@@ -194,6 +336,38 @@ export default function Dashboard() {
     return <div className="loading-state">Loading dashboard…</div>;
   }
 
+  const analysisCards = [
+    {
+      key: 'analysisDevices',
+      title: 'Devices Sold',
+      value: analysis?.devicesSold ?? 0,
+      icon: icons.box,
+      accent: 'blue',
+    },
+    {
+      key: 'analysisRevenue',
+      title: 'Revenue Received',
+      value: formatInr(analysis?.revenueReceived ?? 0),
+      icon: icons.pay,
+      accent: 'green',
+    },
+    {
+      key: 'analysisAverage',
+      title: 'Average Revenue / Device',
+      value: formatInr(analysis?.averageRevenuePerDevice ?? 0),
+      icon: icons.pay,
+      accent: 'amber',
+    },
+  ];
+
+  const quickFilters = [
+    { key: 'today', label: 'Today', range: getTodayRange },
+    { key: 'yesterday', label: 'Yesterday', range: getYesterdayRange },
+    { key: 'week', label: 'This Week', range: getThisWeekRange },
+    { key: 'month', label: 'This Month', range: getThisMonthRange },
+    { key: 'lastMonth', label: 'Last Month', range: getLastMonthRange },
+  ];
+
   return (
     <div className="page dashboard">
       <div className="page__header">
@@ -207,6 +381,20 @@ export default function Dashboard() {
       </div>
 
       {error && <div className="alert alert--error">{error}</div>}
+
+      {unseenOrders > 0 && (
+        <div className="alert alert--info dashboard__unseen-alert">
+          <div>
+            <strong>{unseenOrders} unseen order{unseenOrders === 1 ? '' : 's'}</strong>
+            <div>These orders have not been opened by this admin yet.</div>
+          </div>
+          <Link to="/orders?unseen=true">
+            <Button size="sm" variant="secondary">
+              View unseen orders
+            </Button>
+          </Link>
+        </div>
+      )}
 
       <div className="dashboard__stats">
         {CARD_DEFS.map((card) => {
@@ -240,6 +428,102 @@ export default function Dashboard() {
               key={card.key}
               title={card.title}
               value={card.format ? card.format(sales?.[card.key] ?? 0) : sales?.[card.key] ?? 0}
+              icon={card.icon}
+              accent={card.accent}
+            />
+          ))}
+        </div>
+
+        <div className="dashboard__sales-filters">
+          <div className="dashboard__filter-group">
+            {quickFilters.map((item) => (
+              <Button
+                key={item.key}
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  const range = item.range();
+                  setMonthValue(range.monthValue || monthValue);
+                  setCustomFrom(range.from);
+                  setCustomTo(range.to);
+                  loadDashboard(range).catch((err) => {
+                    if (err.status !== 401) setError(err.message || 'Failed to load dashboard');
+                  });
+                }}
+              >
+                {item.label}
+              </Button>
+            ))}
+          </div>
+
+          <div className="dashboard__filter-row">
+            <label className="dashboard__field">
+              <span>Month</span>
+              <input
+                type="month"
+                value={monthValue}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setMonthValue(value);
+                  const range = getMonthRange(value);
+                  setCustomFrom(range.from);
+                  setCustomTo(range.to);
+                  loadDashboard(range).catch((err) => {
+                    if (err.status !== 401) setError(err.message || 'Failed to load dashboard');
+                  });
+                }}
+              />
+            </label>
+
+            <label className="dashboard__field">
+              <span>From</span>
+              <input
+                type="date"
+                value={customFrom}
+                onChange={(e) => setCustomFrom(e.target.value)}
+              />
+            </label>
+
+            <label className="dashboard__field">
+              <span>To</span>
+              <input
+                type="date"
+                value={customTo}
+                onChange={(e) => setCustomTo(e.target.value)}
+              />
+            </label>
+
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => {
+                const label = describeRange(customFrom, customTo, 'Custom Range');
+                loadDashboard({
+                  from: customFrom || null,
+                  to: customTo || null,
+                  label,
+                }).catch((err) => {
+                  if (err.status !== 401) setError(err.message || 'Failed to load dashboard');
+                });
+              }}
+            >
+              Apply
+            </Button>
+          </div>
+        </div>
+
+        <div className="dashboard__analysis-summary">
+          <p className="dashboard__analysis-label">Selected Period</p>
+          <h4>{selectedRangeLabel || describeRange(analysis?.from, analysis?.to)}</h4>
+        </div>
+
+        <div className="dashboard__stats dashboard__stats--analysis">
+          {analysisCards.map((card) => (
+            <StatCard
+              key={card.key}
+              title={card.title}
+              value={card.value}
               icon={card.icon}
               accent={card.accent}
             />

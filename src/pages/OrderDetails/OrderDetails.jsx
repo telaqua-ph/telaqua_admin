@@ -5,6 +5,7 @@ import {
   getOrderById,
   getOrderStatuses,
   getPaymentStatuses,
+  markOrderSeen,
   updateOrderStatus,
 } from '../../services/api';
 import * as delhivery from '../../services/delhivery';
@@ -87,6 +88,7 @@ export default function OrderDetails() {
         setOrder(data);
         setStatus(data.status);
         setPaymentStatus(data.paymentStatus);
+        markOrderSeen(id).catch(() => {});
       } catch (err) {
         if (!active) return;
         if (err.status !== 401) setError(err.message || 'Failed to load order');

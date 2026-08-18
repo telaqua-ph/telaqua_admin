@@ -8,10 +8,101 @@
   grid-template-columns: repeat(3, 1fr);
 }
 
+.dashboard__stats--analysis {
+  grid-template-columns: repeat(3, 1fr);
+  margin-top: 18px;
+}
+
 .dashboard__section-note {
   margin-top: 6px;
   color: var(--color-text-secondary);
   font-size: 0.875rem;
+}
+
+.dashboard__unseen-alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.dashboard__order-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dashboard__new-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.dashboard__sales-filters {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--color-border);
+}
+
+.dashboard__filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.dashboard__filter-row {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.dashboard__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 150px;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+.dashboard__field input {
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.dashboard__analysis-summary {
+  margin-top: 18px;
+}
+
+.dashboard__analysis-summary h4 {
+  margin: 4px 0 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.dashboard__analysis-label {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 @media (max-width: 1100px) {
@@ -22,10 +113,23 @@
   .dashboard__stats--sales {
     grid-template-columns: repeat(2, 1fr);
   }
+
+  .dashboard__stats--analysis {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 @media (max-width: 560px) {
   .dashboard__stats {
     grid-template-columns: 1fr;
+  }
+
+  .dashboard__stats--analysis,
+  .dashboard__stats--sales {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard__field {
+    min-width: 100%;
   }
 }

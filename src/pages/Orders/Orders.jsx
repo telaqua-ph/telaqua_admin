@@ -60,6 +60,7 @@ export default function Orders() {
   const [paymentFilter, setPaymentFilter] = useState('All');
   const [shipmentFilter, setShipmentFilter] = useState('All');
   const [metricFilter, setMetricFilter] = useState('');
+  const [unseenOnly, setUnseenOnly] = useState(false);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [sortKey, setSortKey] = useState('createdAt');
@@ -82,6 +83,7 @@ export default function Orders() {
     const status = searchParams.get('status');
     const shipment = searchParams.get('shipment');
     const metric = searchParams.get('metric') || '';
+    const unseen = String(searchParams.get('unseen') || '').toLowerCase() === 'true';
 
     if (payment && paymentStatuses.includes(payment)) {
       setPaymentFilter(payment);
@@ -96,6 +98,7 @@ export default function Orders() {
     }
 
     setMetricFilter(metric === 'new' ? 'new' : '');
+    setUnseenOnly(unseen);
     setPage(1);
   }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -139,6 +142,7 @@ export default function Orders() {
 
       const matchesPayment =
         paymentFilter === 'All' || order.paymentStatus === paymentFilter;
+      const matchesSeen = !unseenOnly || !order.isSeen;
       const ship = String(order.shipmentStatus || '').toLowerCase();
       let matchesShipment = true;
       if (shipmentFilter !== 'All') {
@@ -166,6 +170,7 @@ export default function Orders() {
         String(order.city || '').toLowerCase().includes(q);
 
       return (
+        matchesSeen &&
         matchesPayment &&
         matchesShipment &&
         matchesFrom &&
@@ -190,6 +195,7 @@ export default function Orders() {
     paymentFilter,
     shipmentFilter,
     metricFilter,
+    unseenOnly,
     dateFrom,
     dateTo,
     sortKey,
@@ -211,6 +217,7 @@ export default function Orders() {
     paymentFilter,
     shipmentFilter,
     metricFilter,
+    unseenOnly,
     dateFrom,
     dateTo,
   ]);
@@ -225,6 +232,7 @@ export default function Orders() {
     paymentFilter,
     shipmentFilter,
     metricFilter,
+    unseenOnly,
     dateFrom,
     dateTo,
   ]);
@@ -562,7 +570,17 @@ export default function Orders() {
         />
       ),
     },
-    { key: 'orderNumber', label: 'Order' },
+    {
+      key: 'orderNumber',
+      label: 'Order',
+      render: (row) => (
+        <div className="orders__order-cell">
+          {!row.isSeen && <span className="orders__unread-dot" aria-hidden="true" />}
+          <strong>{row.orderNumber || row.id}</strong>
+          {!row.isSeen && <span className="orders__new-badge">NEW</span>}
+        </div>
+      ),
+    },
     {
       key: 'customerName',
       label: 'Customer',
@@ -679,22 +697,27 @@ export default function Orders() {
       {error && <div className="alert alert--error">{error}</div>}
       {message && <div className="alert alert--success">{message}</div>}
 
-      {(metricFilter === 'new' || paymentFilter !== 'All') && (
+      {(metricFilter === 'new' || paymentFilter !== 'All' || unseenOnly) && (
         <div className="alert alert--info">
           Showing:{' '}
           <strong>
             {metricFilter === 'new'
               ? 'New orders (New + Pending status)'
-              : `${paymentFilter} payments`}
+              : unseenOnly
+                ? 'Unseen orders only'
+                : `${paymentFilter} payments`}
           </strong>
-          {metricFilter === 'new' ? (
+          {metricFilter === 'new' || unseenOnly ? (
             <button
               type="button"
               className="orders__clear-selection"
               style={{ marginLeft: 12 }}
-              onClick={() => setMetricFilter('')}
+              onClick={() => {
+                setMetricFilter('');
+                setUnseenOnly(false);
+              }}
             >
-              Clear metric filter
+              Clear filter
             </button>
           ) : null}
         </div>

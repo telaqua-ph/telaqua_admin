@@ -190,6 +190,9 @@ export function normalizeOrder(order) {
     orderedTime: formatTimePart(order.created_at || order.date),
     createdAt: order.created_at || null,
     updatedAt: order.updated_at || null,
+    isSeen: Boolean(order.is_seen ?? order.isSeen ?? false),
+    firstViewedAt: order.first_viewed_at || order.firstViewedAt || null,
+    lastViewedAt: order.last_viewed_at || order.lastViewedAt || null,
     // Shipment / Delhivery fields (orders table)
     shipmentStatus: order.shipment_status || order.shipmentStatus || 'Not Created',
     waybill: order.waybill || '',
@@ -218,6 +221,15 @@ export async function getOrders() {
 export async function getOrderById(id) {
   const data = await apiRequest(`/api/orders/${id}`);
   return normalizeOrder(unwrapItem(data));
+}
+
+export async function markOrderSeen(id) {
+  const data = await apiRequest(`/api/orders/${id}/mark-seen`, {
+    method: 'POST',
+    body: {},
+  });
+  window.dispatchEvent(new Event('orders:seen-changed'));
+  return data;
 }
 
 export async function updateOrderStatus(id, status, paymentStatus) {
@@ -277,15 +289,32 @@ export async function getOrderStats() {
   };
 }
 
-export async function getDashboardSalesOverview() {
-  const data = await apiRequest('/api/dashboard/stats');
+export async function getDashboardStats({ from, to } = {}) {
+  const params = new URLSearchParams();
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  const suffix = params.toString() ? `?${params.toString()}` : '';
+  const data = await apiRequest(`/api/dashboard/stats${suffix}`);
   return {
+    totalOrders: Number(data?.totalOrders || 0),
+    newOrders: Number(data?.newOrders || 0),
+    paidOrders: Number(data?.paidOrders || 0),
+    pendingPayments: Number(data?.pendingPayments || 0),
+    shipmentsCreated: Number(data?.shipmentsCreated || 0),
+    unseenOrders: Number(data?.unseenOrders || 0),
     devicesSold: Number(data?.devicesSold || 0),
     revenueReceived: Number(data?.revenueReceived || 0),
     todayDevicesSold: Number(data?.todayDevicesSold || 0),
     todayRevenue: Number(data?.todayRevenue || 0),
     monthDevicesSold: Number(data?.monthDevicesSold || 0),
     monthRevenue: Number(data?.monthRevenue || 0),
+    analysis: {
+      from: data?.analysis?.from || null,
+      to: data?.analysis?.to || null,
+      devicesSold: Number(data?.analysis?.devicesSold || 0),
+      revenueReceived: Number(data?.analysis?.revenueReceived || 0),
+      averageRevenuePerDevice: Number(data?.analysis?.averageRevenuePerDevice || 0),
+    },
   };
 }
 

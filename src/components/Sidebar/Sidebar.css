@@ -76,6 +76,10 @@
     color var(--transition);
 }
 
+.sidebar__link-text {
+  min-width: 0;
+}
+
 .sidebar__link:hover {
   background: #fff7ed;
   color: var(--color-primary);
@@ -99,6 +103,21 @@
 .sidebar__link-icon svg {
   width: 18px;
   height: 18px;
+}
+
+.sidebar__badge {
+  margin-left: auto;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .sidebar__footer {
