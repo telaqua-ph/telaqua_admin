@@ -148,8 +148,8 @@ export default function Orders() {
       if (shipmentFilter !== 'All') {
         const f = shipmentFilter.toLowerCase();
         matchesShipment =
-          (f === 'not created' && !order.waybill) ||
-          (f === 'created' && Boolean(order.waybill)) ||
+          (f === 'not created' && !isShipmentCreated(order)) ||
+          (f === 'created' && isShipmentCreated(order)) ||
           (f === 'failed' && (ship.includes('fail') || ship.includes('error')));
       }
 

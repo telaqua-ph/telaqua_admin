@@ -9,6 +9,7 @@ import {
   matchesFulfillmentBucket,
 } from '../../utils/fulfillmentTimeline';
 import { filterOrdersByMetric } from '../../utils/dashboardMetrics';
+import { DELHIVERY_HANDOFF_MESSAGE, DELHIVERY_ONE_URL } from '../../utils/shipmentHelpers';
 import { exportOrdersToCsv } from '../../utils/exportOrdersCsv';
 import '../../styles/shared.css';
 import './Fulfillment.css';
@@ -202,7 +203,14 @@ export default function Fulfillment() {
       <div className="page__header">
         <div className="page__header-text">
           <h2>Fulfillment</h2>
-          <p>Send orders to Delhivery. After AWB is created, manage logistics in Delhivery One.</p>
+          <p>
+            Send orders to Delhivery from Tel-Aqua. After creation, pickup and delivery
+            states (Ready to Ship, Ready for Pickup, In Transit) are managed in{' '}
+            <a href={DELHIVERY_ONE_URL} target="_blank" rel="noopener noreferrer">
+              Delhivery One
+            </a>
+            .
+          </p>
         </div>
         <Button
           variant="secondary"
@@ -216,6 +224,10 @@ export default function Fulfillment() {
       </div>
 
       {error && <div className="alert alert--error">{error}</div>}
+
+      <div className="alert alert--info">
+        {DELHIVERY_HANDOFF_MESSAGE}
+      </div>
 
       {metricLabel && (
         <div className="alert alert--info">

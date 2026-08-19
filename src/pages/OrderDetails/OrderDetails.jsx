@@ -14,7 +14,11 @@ import StatusBadge from '../../components/StatusBadge/StatusBadge';
 import { Modal } from '../../components/Modal';
 import {
   canCreateShipment,
+  DELHIVERY_HANDOFF_MESSAGE,
+  DELHIVERY_HANDOFF_TITLE,
+  DELHIVERY_ONE_URL,
   extractWaybillFromResponse,
+  formatAwbDisplay,
   hasWaybill,
   isShipmentCreated,
 } from '../../utils/shipmentHelpers';
@@ -167,14 +171,15 @@ export default function OrderDetails() {
 
       setConfirmOpen(false);
       setShipmentSuccess({
-        waybill: waybill || refreshed?.waybill || '—',
+        waybill: waybill || refreshed?.waybill || '',
+        delhiveryShipmentId: refreshed?.delhiveryShipmentId || '',
         status: refreshed?.shipmentStatus || 'Created',
         createdAt: refreshed?.shipmentCreatedAtLabel || 'Just now',
       });
       setMessage(
         alreadyCreated
-          ? 'Shipment already created'
-          : 'Shipment Created Successfully'
+          ? DELHIVERY_HANDOFF_TITLE
+          : DELHIVERY_HANDOFF_TITLE
       );
     } catch (err) {
       if (err.status === 401) return;
@@ -192,7 +197,7 @@ export default function OrderDetails() {
       }
 
       const partial =
-        hasWaybill(refreshed) || mentionsPartialSave(rawMessage);
+        isShipmentCreated(refreshed) || mentionsPartialSave(rawMessage);
 
       setConfirmOpen(false);
       setShipmentFailure({
@@ -270,20 +275,36 @@ export default function OrderDetails() {
             ✓
           </div>
           <div className="shipment-alert__content">
-            <h4>Shipment Created Successfully</h4>
+            <h4>{DELHIVERY_HANDOFF_TITLE}</h4>
+            <p className="shipment-alert__text">{DELHIVERY_HANDOFF_MESSAGE}</p>
             <div className="shipment-alert__meta">
               <p>
                 <span>AWB</span>
-                <strong>{shipmentSuccess.waybill}</strong>
+                <strong>{shipmentSuccess.waybill || 'AWB Pending'}</strong>
               </p>
               <p>
-                <span>Status</span>
+                <span>Delhivery shipment ID</span>
+                <strong>{shipmentSuccess.delhiveryShipmentId || '—'}</strong>
+              </p>
+              <p>
+                <span>Tel-Aqua status</span>
                 <strong>{shipmentSuccess.status}</strong>
               </p>
               <p>
                 <span>Created</span>
                 <strong>{shipmentSuccess.createdAt}</strong>
               </p>
+            </div>
+            <div className="shipment-alert__actions">
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  window.open(DELHIVERY_ONE_URL, '_blank', 'noopener,noreferrer');
+                }}
+              >
+                Open Delhivery One
+              </Button>
             </div>
           </div>
         </div>
@@ -307,7 +328,7 @@ export default function OrderDetails() {
               </p>
             )}
             <div className="shipment-alert__actions">
-              {!hasWaybill(order) && (
+              {!isShipmentCreated(order) && (
                 <Button
                   size="sm"
                   disabled={busy}
@@ -439,14 +460,14 @@ export default function OrderDetails() {
             <div className="panel__body order-details__fields">
               <div>
                 <span>Delivery</span>
-                <strong>{order.waybill ? 'Delhivery' : 'Not Created'}</strong>
+                <strong>{shipmentReady ? 'Delhivery' : 'Not Created'}</strong>
               </div>
               <div>
-                <span>Status</span>
+                <span>Tel-Aqua shipment status</span>
                 <strong>
                   <StatusBadge
                     status={
-                      order.waybill
+                      shipmentReady
                         ? order.shipmentStatus || 'Created'
                         : 'Not Created'
                     }
@@ -457,9 +478,9 @@ export default function OrderDetails() {
                 <span>AWB</span>
                 <div className="order-details__awb">
                   <strong className="order-details__awb-value">
-                    {order.waybill || '—'}
+                    {formatAwbDisplay(order)}
                   </strong>
-                  {order.waybill ? (
+                  {waybillReady ? (
                     <Button
                       type="button"
                       size="sm"
@@ -480,23 +501,36 @@ export default function OrderDetails() {
               </div>
               <div>
                 <span>Shipment created</span>
-                <strong>{order.shipmentCreatedAtLabel}</strong>
+                <strong>{order.shipmentCreatedAtLabel || '—'}</strong>
               </div>
             </div>
 
-            {waybillReady ? (
-              <div className="panel__body">
-                <p className="form-hint">
-                  After AWB is created, use{' '}
-                  <a
-                    href="https://one.delhivery.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
+            {shipmentReady ? (
+              <div className="panel__body order-details__delhivery-handoff">
+                <h4 className="order-details__handoff-title">{DELHIVERY_HANDOFF_TITLE}</h4>
+                <p className="form-hint">{DELHIVERY_HANDOFF_MESSAGE}</p>
+                <div className="order-details__handoff-actions">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => {
+                      window.open(DELHIVERY_ONE_URL, '_blank', 'noopener,noreferrer');
+                    }}
                   >
-                    Delhivery One
-                  </a>{' '}
-                  for pickup, labels, and remaining delivery logistics.
-                </p>
+                    Open Delhivery One
+                  </Button>
+                  {waybillReady ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline-primary"
+                      onClick={handleTrackShipment}
+                    >
+                      Track on Delhivery
+                    </Button>
+                  ) : null}
+                </div>
               </div>
             ) : null}
           </section>
@@ -595,17 +629,17 @@ export default function OrderDetails() {
                 </div>
                 <div>
                   <span>Delivery</span>
-                  <strong>{order.waybill ? 'Delhivery' : 'Not Created'}</strong>
+                  <strong>{shipmentReady ? 'Delhivery' : 'Not Created'}</strong>
                 </div>
-                {order.waybill ? (
+                {shipmentReady ? (
                   <>
                     <div>
-                      <span>Status</span>
+                      <span>Tel-Aqua status</span>
                       <strong>{order.shipmentStatus || 'Created'}</strong>
                     </div>
                     <div>
                       <span>AWB</span>
-                      <strong>{order.waybill}</strong>
+                      <strong>{formatAwbDisplay(order)}</strong>
                     </div>
                   </>
                 ) : null}
@@ -629,6 +663,18 @@ export default function OrderDetails() {
                 <p className="form-hint">
                   Prepaid orders must be Paid before sending to Delhivery.
                 </p>
+              )}
+
+              {shipmentReady && (
+                <Button
+                  variant="secondary"
+                  disabled={busy}
+                  onClick={() => {
+                    window.open(DELHIVERY_ONE_URL, '_blank', 'noopener,noreferrer');
+                  }}
+                >
+                  Open Delhivery One
+                </Button>
               )}
 
               {waybillReady && (
