@@ -177,6 +177,10 @@ export function normalizeOrder(order) {
     quantity: order.quantity ?? 0,
     unitPrice: order.unit_price ?? order.unitPrice ?? 0,
     total: order.total_amount ?? order.total ?? 0,
+    promoCode: String(order.promo_code || order.promoCode || '').trim(),
+    discountAmount: Number(
+      order.discount_amount ?? order.discountAmount ?? 0
+    ) || 0,
     paymentMethod: order.payment_method || order.paymentMethod || '—',
     paymentStatus: order.payment_status || order.paymentStatus || 'Pending',
     paymentId:

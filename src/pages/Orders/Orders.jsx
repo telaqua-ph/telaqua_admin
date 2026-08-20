@@ -167,6 +167,7 @@ export default function Orders() {
         String(order.email || '').toLowerCase().includes(q) ||
         String(order.product || '').toLowerCase().includes(q) ||
         String(order.waybill || '').toLowerCase().includes(q) ||
+        String(order.promoCode || '').toLowerCase().includes(q) ||
         String(order.city || '').toLowerCase().includes(q);
 
       return (
@@ -616,6 +617,16 @@ export default function Orders() {
           )}
         </div>
       ),
+    },
+    {
+      key: 'promoCode',
+      label: 'Promo',
+      render: (row) =>
+        row.promoCode ? (
+          <strong className="orders__promo-code">{row.promoCode}</strong>
+        ) : (
+          '—'
+        ),
     },
     {
       key: 'shipmentStatus',

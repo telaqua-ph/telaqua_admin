@@ -449,6 +449,16 @@ export default function OrderDetails() {
                 <span>Total paid</span>
                 <strong>₹{order.total}</strong>
               </div>
+              <div>
+                <span>Promo code</span>
+                <strong>{order.promoCode || '—'}</strong>
+              </div>
+              {order.promoCode && Number(order.discountAmount) > 0 ? (
+                <div>
+                  <span>Discount</span>
+                  <strong>₹{order.discountAmount}</strong>
+                </div>
+              ) : null}
             </div>
           </section>
 

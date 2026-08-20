@@ -30,6 +30,8 @@ const CSV_COLUMNS = [
   { key: 'paymentMethod', label: 'Payment Method' },
   { key: 'paymentStatus', label: 'Payment Status' },
   { key: 'paymentId', label: 'Payment ID' },
+  { key: 'promoCode', label: 'Promo Code' },
+  { key: 'discountAmount', label: 'Discount Amount' },
   { key: 'status', label: 'Order Status' },
   { key: 'orderedDate', label: 'Order Date' },
   { key: 'orderedTime', label: 'Order Time' },

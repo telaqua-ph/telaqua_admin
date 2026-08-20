@@ -85,6 +85,12 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
+.orders__promo-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9rem;
+  letter-spacing: 0.02em;
+}
+
 .orders__checkbox {
   width: 16px;
   height: 16px;
