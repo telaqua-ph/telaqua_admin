@@ -29,8 +29,16 @@ const PAGE_SIZE = 10;
 
 const SHIPMENT_FILTERS = [
   'All',
-  'Not Created',
-  'Created',
+  'Unfulfilled',
+  'Ready to Ship',
+  'Shipment Created',
+  'Pickup Requested',
+  'Picked Up',
+  'In Transit',
+  'Out for Delivery',
+  'Delivered',
+  'NDR / Exceptions',
+  'Returned',
   'Failed',
 ];
 
@@ -143,14 +151,9 @@ export default function Orders() {
       const matchesPayment =
         paymentFilter === 'All' || order.paymentStatus === paymentFilter;
       const matchesSeen = !unseenOnly || !order.isSeen;
-      const ship = String(order.shipmentStatus || '').toLowerCase();
       let matchesShipment = true;
       if (shipmentFilter !== 'All') {
-        const f = shipmentFilter.toLowerCase();
-        matchesShipment =
-          (f === 'not created' && !isShipmentCreated(order)) ||
-          (f === 'created' && isShipmentCreated(order)) ||
-          (f === 'failed' && (ship.includes('fail') || ship.includes('error')));
+        matchesShipment = fulfillmentListLabel(order) === shipmentFilter;
       }
 
       const created = order.createdAt ? new Date(order.createdAt) : null;

@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   deleteOrder,
@@ -14,13 +14,13 @@ import StatusBadge from '../../components/StatusBadge/StatusBadge';
 import { Modal } from '../../components/Modal';
 import {
   canCreateShipment,
-  DELHIVERY_HANDOFF_MESSAGE,
-  DELHIVERY_HANDOFF_TITLE,
-  DELHIVERY_ONE_URL,
+  extractLabelUrl,
+  extractNdrReason,
   extractWaybillFromResponse,
-  formatAwbDisplay,
   hasWaybill,
   isShipmentCreated,
+  looksLikeNdr,
+  openLabelAsset,
 } from '../../utils/shipmentHelpers';
 import {
   extractBackendMessage,
@@ -28,9 +28,33 @@ import {
   mentionsPartialSave,
   sanitizeTechnicalMessage,
 } from '../../utils/shipmentErrorMessages';
-import { fulfillmentListLabel } from '../../utils/fulfillmentTimeline';
+import {
+  buildFulfillmentTimeline,
+  extractTrackingEvents,
+  fulfillmentListLabel,
+} from '../../utils/fulfillmentTimeline';
 import '../../styles/shared.css';
 import './OrderDetails.css';
+
+const emptyPickup = {
+  pickup_date: '',
+  pickup_time: '18:30:00',
+  pickup_location: 'Telaqua WH',
+  expected_package_count: 1,
+};
+
+const emptyEditForm = {
+  phone: '',
+  name: '',
+  add: '',
+  cod: '',
+  gm: '',
+  shipment_length: '',
+  shipment_width: '',
+  shipment_height: '',
+  product_details: '',
+  pt: '',
+};
 
 export default function OrderDetails() {
   const { id } = useParams();
@@ -44,6 +68,12 @@ export default function OrderDetails() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [actionLoading, setActionLoading] = useState('');
+  const [trackingPayload, setTrackingPayload] = useState(null);
+  const [logisticsChecks, setLogisticsChecks] = useState({
+    serviceability: null,
+    tat: null,
+    rate: null,
+  });
   const [shipmentFailure, setShipmentFailure] = useState(null);
   const [shipmentSuccess, setShipmentSuccess] = useState(null);
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
@@ -62,6 +92,19 @@ export default function OrderDetails() {
   };
 
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [pickupOpen, setPickupOpen] = useState(false);
+  const [ndrOpen, setNdrOpen] = useState(false);
+
+  const [editForm, setEditForm] = useState(emptyEditForm);
+  const [pickupForm, setPickupForm] = useState(emptyPickup);
+  const [ndrForm, setNdrForm] = useState({
+    act: 'RE-ATTEMPT',
+    deferred_date: '',
+    name: '',
+    phone: '',
+    add: '',
+  });
 
   const statuses = getOrderStatuses();
   const paymentStatuses = getPaymentStatuses();
@@ -111,6 +154,44 @@ export default function OrderDetails() {
   const shipmentReady = isShipmentCreated(order);
   const waybillReady = hasWaybill(order);
   const createAllowed = canCreateShipment(order);
+  const showNdr = looksLikeNdr(order);
+  const labelReady = Boolean(
+    order?.labelData &&
+      String(order.labelData).trim() &&
+      String(order.labelData).trim() !== '—'
+  );
+
+  const labelUrl = useMemo(
+    () => extractLabelUrl(null, order?.labelData),
+    [order?.labelData]
+  );
+
+  const runAction = async (key, fn, successMsg) => {
+    setActionLoading(key);
+    setError('');
+    setMessage('');
+    try {
+      const result = await fn();
+      await refreshOrder();
+      if (successMsg) setMessage(successMsg);
+      return result;
+    } catch (err) {
+      if (err.status !== 401) {
+        const raw = sanitizeTechnicalMessage(
+          extractBackendMessage(err) || err.message || 'Action failed'
+        );
+        setError(raw || 'Action failed');
+      }
+      try {
+        await refreshOrder();
+      } catch {
+        /* ignore refresh failure */
+      }
+      return null;
+    } finally {
+      setActionLoading('');
+    }
+  };
 
   const handleSaveStatus = async (e) => {
     e.preventDefault();
@@ -161,26 +242,16 @@ export default function OrderDetails() {
       const refreshed = await refreshOrder();
       const waybill =
         refreshed?.waybill ||
-        result?.awb ||
-        result?.waybill ||
         extractWaybillFromResponse(result) ||
         '';
-      const alreadyCreated =
-        String(result?.message || '').toLowerCase() ===
-        'shipment already created';
 
       setConfirmOpen(false);
       setShipmentSuccess({
-        waybill: waybill || refreshed?.waybill || '',
-        delhiveryShipmentId: refreshed?.delhiveryShipmentId || '',
+        waybill: waybill || refreshed?.waybill || '—',
         status: refreshed?.shipmentStatus || 'Created',
         createdAt: refreshed?.shipmentCreatedAtLabel || 'Just now',
       });
-      setMessage(
-        alreadyCreated
-          ? DELHIVERY_HANDOFF_TITLE
-          : DELHIVERY_HANDOFF_TITLE
-      );
+      setMessage('Shipment Created Successfully');
     } catch (err) {
       if (err.status === 401) return;
 
@@ -197,7 +268,7 @@ export default function OrderDetails() {
       }
 
       const partial =
-        isShipmentCreated(refreshed) || mentionsPartialSave(rawMessage);
+        hasWaybill(refreshed) || mentionsPartialSave(rawMessage);
 
       setConfirmOpen(false);
       setShipmentFailure({
@@ -216,15 +287,245 @@ export default function OrderDetails() {
     }
   };
 
-  const handleTrackShipment = () => {
-    const awb = String(order?.waybill || '').trim();
-    if (!awb) return;
-    window.open(
-      `https://www.delhivery.com/track/package/${encodeURIComponent(awb)}`,
-      '_blank',
-      'noopener,noreferrer'
+  const handleGenerateLabel = async () => {
+    if (!order?.waybill || actionLoading === 'label') return;
+    await runAction(
+      'label',
+      () =>
+        delhivery.getLabel(order.waybill, {
+          order_id: Number(order.id) || order.id,
+        }),
+      'Label Generated'
     );
   };
+
+  const handleCheckServiceability = async () => {
+    const result = await runAction(
+      'serviceability',
+      () => delhivery.checkServiceability(order.pincode, { order_id: order.id }),
+      null
+    );
+    if (result) {
+      setLogisticsChecks((current) => ({ ...current, serviceability: result }));
+      setMessage(result.serviceable ? 'Pincode is serviceable.' : 'Pincode is not serviceable.');
+    }
+  };
+
+  const handleCheckTat = async () => {
+    const result = await runAction(
+      'tat',
+      () => delhivery.getTat({ destination_pin: order.pincode, order_id: order.id }),
+      'Delivery estimate updated.'
+    );
+    if (result) setLogisticsChecks((current) => ({ ...current, tat: result }));
+  };
+
+  const handleCalculateRate = async () => {
+    const result = await runAction(
+      'rate',
+      () => delhivery.getRate({ d_pin: order.pincode, order_id: order.id }),
+      'Shipping charge calculated.'
+    );
+    if (result) setLogisticsChecks((current) => ({ ...current, rate: result }));
+  };
+
+  const handleGenerateWaybill = async () => {
+    await runAction(
+      'waybill',
+      () => delhivery.getWaybill({ order_id: order.id }),
+      'Waybill generated.'
+    );
+  };
+
+  const handleViewLabel = () => {
+    openLabelAsset(labelUrl, { download: false });
+  };
+
+  const handleDownloadLabel = () => {
+    openLabelAsset(labelUrl, {
+      download: true,
+      filename: `label-${order?.waybill || order?.orderNumber || 'shipment'}.pdf`,
+    });
+  };
+
+  const handlePrintLabel = () => {
+    if (!labelUrl) return;
+    const win = window.open(labelUrl, '_blank', 'noopener,noreferrer');
+    if (!win) {
+      openLabelAsset(labelUrl, { download: false });
+      return;
+    }
+    const tryPrint = () => {
+      try {
+        win.focus();
+        win.print();
+      } catch {
+        /* browser may block print until load */
+      }
+    };
+    win.addEventListener?.('load', tryPrint);
+    setTimeout(tryPrint, 800);
+  };
+
+  const handleRefreshTracking = async () => {
+    if (!order?.waybill || actionLoading === 'tracking') return;
+    const result = await runAction(
+      'tracking',
+      () =>
+        delhivery.getTracking(order.waybill, {
+          order_id: Number(order.id) || order.id,
+        }),
+      'Tracking refreshed.'
+    );
+    if (result) setTrackingPayload(result);
+  };
+
+  const openEditShipment = () => {
+    setEditForm({
+      ...emptyEditForm,
+      phone: order.phone || '',
+      name: order.customerName || '',
+      add: order.address || '',
+      cod: order.paymentMethod?.toLowerCase?.().includes('cod')
+        ? String(order.total || '')
+        : '',
+      product_details: order.product || '',
+    });
+    setEditOpen(true);
+  };
+
+  const handleUpdateShipment = async () => {
+    if (!order?.waybill || actionLoading === 'update') return;
+    const body = { waybill: order.waybill };
+    const optionalKeys = [
+      'phone',
+      'name',
+      'add',
+      'cod',
+      'gm',
+      'shipment_length',
+      'shipment_width',
+      'shipment_height',
+      'product_details',
+      'pt',
+    ];
+    optionalKeys.forEach((key) => {
+      const value = String(editForm[key] ?? '').trim();
+      if (value) body[key] = value;
+    });
+
+    if (Object.keys(body).length <= 1) {
+      setError('Enter at least one field to update.');
+      return;
+    }
+
+    await runAction(
+      'update',
+      () => delhivery.updateShipment({ ...body, order_id: order.id }),
+      'Shipment updated successfully'
+    );
+    setEditOpen(false);
+  };
+
+  const openPickup = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    setPickupForm({
+      ...emptyPickup,
+      pickup_date: tomorrow.toISOString().slice(0, 10),
+      expected_package_count: Math.max(1, Number(order?.quantity) || 1),
+    });
+    setPickupOpen(true);
+  };
+
+  const handleRequestPickup = async () => {
+    if (actionLoading === 'pickup') return;
+    if (
+      !pickupForm.pickup_date ||
+      !pickupForm.pickup_time ||
+      !pickupForm.pickup_location.trim()
+    ) {
+      setError('Pickup date, time, and location are required.');
+      return;
+    }
+
+    const alreadyRequested = String(order?.pickupStatus || '')
+      .toLowerCase()
+      .includes('request');
+    if (alreadyRequested) {
+      const ok = window.confirm(
+        'Pickup appears already requested for this order. Request again?'
+      );
+      if (!ok) return;
+    }
+
+    await runAction(
+      'pickup',
+      () =>
+        delhivery.requestPickup({
+          pickup_time: pickupForm.pickup_time,
+          pickup_date: pickupForm.pickup_date,
+          pickup_location: pickupForm.pickup_location.trim(),
+          expected_package_count: Number(pickupForm.expected_package_count) || 1,
+          order_id: Number(order.id) || order.id,
+          waybill: order.waybill || undefined,
+        }),
+      'Pickup Requested'
+    );
+    setPickupOpen(false);
+  };
+
+  const handleSubmitNdr = async () => {
+    if (!order?.waybill || actionLoading === 'ndr') return;
+    const item = { waybill: order.waybill, act: ndrForm.act };
+    if (ndrForm.act === 'DEFER_DLV') {
+      if (!ndrForm.deferred_date) {
+        setError('Deferred date is required for DEFER_DLV.');
+        return;
+      }
+      item.action_data = { deferred_date: ndrForm.deferred_date };
+    }
+    if (ndrForm.act === 'EDIT_DETAILS') {
+      item.action_data = {};
+      if (ndrForm.name.trim()) item.action_data.name = ndrForm.name.trim();
+      if (ndrForm.phone.trim()) item.action_data.phone = ndrForm.phone.trim();
+      if (ndrForm.add.trim()) item.action_data.add = ndrForm.add.trim();
+      if (!Object.keys(item.action_data).length) {
+        setError('Provide at least one field for EDIT_DETAILS.');
+        return;
+      }
+    }
+
+    const confirmed = window.confirm(
+      `Submit NDR action "${ndrForm.act}" for AWB ${order.waybill}?`
+    );
+    if (!confirmed) return;
+
+    await runAction(
+      'ndr',
+      () =>
+        delhivery.submitNdr({
+          data: [item],
+          order_id: Number(order.id) || order.id,
+        }),
+      'NDR action submitted.'
+    );
+    setNdrOpen(false);
+  };
+
+  const timeline = useMemo(
+    () => buildFulfillmentTimeline(order),
+    [order]
+  );
+  const trackingEvents = useMemo(
+    () => extractTrackingEvents(trackingPayload),
+    [trackingPayload]
+  );
+  const isDelivered =
+    String(order?.trackingStatus || '')
+      .toLowerCase()
+      .includes('delivered') ||
+    String(order?.shipmentStatus || '').toLowerCase() === 'delivered';
 
   if (loading) {
     return <div className="loading-state">Loading order…</div>;
@@ -275,36 +576,20 @@ export default function OrderDetails() {
             ✓
           </div>
           <div className="shipment-alert__content">
-            <h4>{DELHIVERY_HANDOFF_TITLE}</h4>
-            <p className="shipment-alert__text">{DELHIVERY_HANDOFF_MESSAGE}</p>
+            <h4>Shipment Created Successfully</h4>
             <div className="shipment-alert__meta">
               <p>
                 <span>AWB</span>
-                <strong>{shipmentSuccess.waybill || 'AWB Pending'}</strong>
+                <strong>{shipmentSuccess.waybill}</strong>
               </p>
               <p>
-                <span>Delhivery shipment ID</span>
-                <strong>{shipmentSuccess.delhiveryShipmentId || '—'}</strong>
-              </p>
-              <p>
-                <span>Tel-Aqua status</span>
+                <span>Status</span>
                 <strong>{shipmentSuccess.status}</strong>
               </p>
               <p>
                 <span>Created</span>
                 <strong>{shipmentSuccess.createdAt}</strong>
               </p>
-            </div>
-            <div className="shipment-alert__actions">
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => {
-                  window.open(DELHIVERY_ONE_URL, '_blank', 'noopener,noreferrer');
-                }}
-              >
-                Open Delhivery One
-              </Button>
             </div>
           </div>
         </div>
@@ -328,7 +613,7 @@ export default function OrderDetails() {
               </p>
             )}
             <div className="shipment-alert__actions">
-              {!isShipmentCreated(order) && (
+              {!hasWaybill(order) && (
                 <Button
                   size="sm"
                   disabled={busy}
@@ -464,33 +749,27 @@ export default function OrderDetails() {
 
           <section className="panel">
             <div className="panel__header">
-              <h3>Fulfillment</h3>
+              <h3>Fulfillment / Delivery</h3>
               <StatusBadge status={fulfillmentListLabel(order)} />
             </div>
             <div className="panel__body order-details__fields">
               <div>
-                <span>Delivery</span>
-                <strong>{shipmentReady ? 'Delhivery' : 'Not Created'}</strong>
+                <span>Carrier</span>
+                <strong>Delhivery</strong>
               </div>
               <div>
-                <span>Tel-Aqua shipment status</span>
+                <span>Fulfillment Status</span>
                 <strong>
-                  <StatusBadge
-                    status={
-                      shipmentReady
-                        ? order.shipmentStatus || 'Created'
-                        : 'Not Created'
-                    }
-                  />
+                  <StatusBadge status={fulfillmentListLabel(order)} />
                 </strong>
               </div>
               <div>
                 <span>AWB</span>
                 <div className="order-details__awb">
                   <strong className="order-details__awb-value">
-                    {formatAwbDisplay(order)}
+                    {order.waybill || '—'}
                   </strong>
-                  {waybillReady ? (
+                  {order.waybill ? (
                     <Button
                       type="button"
                       size="sm"
@@ -511,38 +790,85 @@ export default function OrderDetails() {
               </div>
               <div>
                 <span>Shipment created</span>
-                <strong>{order.shipmentCreatedAtLabel || '—'}</strong>
+                <strong>{order.shipmentCreatedAtLabel}</strong>
+              </div>
+              <div>
+                <span>Pickup status</span>
+                <strong>
+                  <StatusBadge status={order.pickupStatus || 'Not Requested'} />
+                </strong>
+              </div>
+              <div>
+                <span>Pickup requested</span>
+                <strong>{order.pickupRequestedAtLabel}</strong>
               </div>
             </div>
 
-            {shipmentReady ? (
-              <div className="panel__body order-details__delhivery-handoff">
-                <h4 className="order-details__handoff-title">{DELHIVERY_HANDOFF_TITLE}</h4>
-                <p className="form-hint">{DELHIVERY_HANDOFF_MESSAGE}</p>
-                <div className="order-details__handoff-actions">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => {
-                      window.open(DELHIVERY_ONE_URL, '_blank', 'noopener,noreferrer');
-                    }}
-                  >
-                    Open Delhivery One
-                  </Button>
-                  {waybillReady ? (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline-primary"
-                      onClick={handleTrackShipment}
-                    >
-                      Track on Delhivery
-                    </Button>
-                  ) : null}
+            <div className="panel__body order-details__tracking">
+              <h4>Tracking</h4>
+              <div className="order-details__fields">
+                <div>
+                  <span>Current Status</span>
+                  <strong>{order.trackingStatus || 'Not Available'}</strong>
+                </div>
+                <div>
+                  <span>Last Updated</span>
+                  <strong>{order.trackingUpdatedAtLabel || '—'}</strong>
+                </div>
+                <div>
+                  <span>AWB</span>
+                  <strong>{order.waybill || '—'}</strong>
                 </div>
               </div>
-            ) : null}
+            </div>
+
+            <div className="panel__body fulfillment-timeline">
+              <h4>Shipment timeline</h4>
+              <ol className="fulfillment-timeline__list">
+                {timeline.map((stage) => (
+                  <li
+                    key={stage.id}
+                    className={[
+                      'fulfillment-timeline__item',
+                      stage.done ? 'fulfillment-timeline__item--done' : '',
+                      stage.current ? 'fulfillment-timeline__item--current' : '',
+                      stage.failed ? 'fulfillment-timeline__item--failed' : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                  >
+                    <span className="fulfillment-timeline__dot" aria-hidden="true">
+                      {stage.done ? '✓' : stage.failed ? '!' : ''}
+                    </span>
+                    <div>
+                      <strong>{stage.label}</strong>
+                      {stage.at ? <p>{stage.at}</p> : null}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </div>
+
+            {trackingEvents.length > 0 && (
+              <div className="panel__body order-details__tracking-raw">
+                <h4>Tracking events</h4>
+                <ul className="tracking-events">
+                  {trackingEvents.map((event, index) => (
+                    <li key={`${event.label}-${index}`}>
+                      <strong>{event.label}</strong>
+                      {event.at ? <span>{event.at}</span> : null}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {trackingPayload && trackingEvents.length === 0 && (
+              <div className="panel__body order-details__tracking-raw">
+                <h4>Latest tracking response</h4>
+                <pre>{JSON.stringify(trackingPayload, null, 2)}</pre>
+              </div>
+            )}
           </section>
 
           <section className="panel">
@@ -630,34 +956,56 @@ export default function OrderDetails() {
               <h3>Delivery actions</h3>
             </div>
             <div className="panel__body order-details__actions">
-              <div className="order-details__stack">
-                <div>
-                  <span>Payment</span>
-                  <strong>
-                    <StatusBadge status={order.paymentStatus} />
-                  </strong>
-                </div>
-                <div>
-                  <span>Delivery</span>
-                  <strong>{shipmentReady ? 'Delhivery' : 'Not Created'}</strong>
-                </div>
-                {shipmentReady ? (
-                  <>
-                    <div>
-                      <span>Tel-Aqua status</span>
-                      <strong>{order.shipmentStatus || 'Created'}</strong>
-                    </div>
-                    <div>
-                      <span>AWB</span>
-                      <strong>{formatAwbDisplay(order)}</strong>
-                    </div>
-                  </>
-                ) : null}
-              </div>
+              <Button
+                variant="secondary"
+                disabled={busy || actionLoading === 'serviceability' || !order.pincode}
+                onClick={handleCheckServiceability}
+              >
+                {actionLoading === 'serviceability' ? 'Checking…' : 'Check Serviceability'}
+              </Button>
+              <Button
+                variant="secondary"
+                disabled={busy || actionLoading === 'tat' || !order.pincode}
+                onClick={handleCheckTat}
+              >
+                {actionLoading === 'tat' ? 'Checking…' : 'Check Estimated Delivery'}
+              </Button>
+              <Button
+                variant="secondary"
+                disabled={busy || actionLoading === 'rate' || !order.pincode}
+                onClick={handleCalculateRate}
+              >
+                {actionLoading === 'rate' ? 'Calculating…' : 'Calculate Shipping Charge'}
+              </Button>
 
+              {logisticsChecks.serviceability && (
+                <p className="form-hint">
+                  Serviceability: <strong>{logisticsChecks.serviceability.serviceable ? 'Serviceable' : 'Not Serviceable'}</strong>
+                </p>
+              )}
+              {logisticsChecks.tat && (
+                <p className="form-hint">
+                  Estimated delivery: <strong>{logisticsChecks.tat.expected_delivery_date || logisticsChecks.tat.estimated_tat || 'See API message'}</strong>
+                </p>
+              )}
+              {logisticsChecks.rate && (
+                <p className="form-hint">
+                  Shipping charge: <strong>{logisticsChecks.rate.shipping_charge == null ? 'See API details' : `₹${logisticsChecks.rate.shipping_charge}`}</strong>
+                </p>
+              )}
+
+              {!shipmentReady && !waybillReady && createAllowed && (
+                <Button
+                  variant="outline-primary"
+                  disabled={busy || actionLoading === 'waybill'}
+                  onClick={handleGenerateWaybill}
+                >
+                  {actionLoading === 'waybill' ? 'Generating…' : 'Generate Waybill'}
+                </Button>
+              )}
               {!shipmentReady && (
                 <Button
-                  disabled={busy || !createAllowed || actionLoading === 'create'}
+                  disabled={busy || !createAllowed || !waybillReady || actionLoading === 'create'}
                   onClick={() => {
                     setShipmentFailure(null);
                     setShowTechnicalDetails(false);
@@ -665,36 +1013,134 @@ export default function OrderDetails() {
                   }}
                 >
                   {actionLoading === 'create'
-                    ? 'Sending to Delhivery...'
-                    : 'Send to Delhivery'}
+                    ? 'Creating Shipment...'
+                    : 'Create Shipment'}
                 </Button>
               )}
               {!createAllowed && !shipmentReady && (
                 <p className="form-hint">
-                  Prepaid orders must be Paid before sending to Delhivery.
+                  Shipment is blocked until payment is paid.
                 </p>
               )}
-
-              {shipmentReady && (
-                <Button
-                  variant="secondary"
-                  disabled={busy}
-                  onClick={() => {
-                    window.open(DELHIVERY_ONE_URL, '_blank', 'noopener,noreferrer');
-                  }}
-                >
-                  Open Delhivery One
-                </Button>
+              {createAllowed && !waybillReady && !shipmentReady && (
+                <p className="form-hint">Generate one waybill before creating the shipment.</p>
               )}
 
               {waybillReady && (
-                <Button
-                  variant="secondary"
-                  disabled={busy}
-                  onClick={handleTrackShipment}
-                >
-                  Track Shipment
-                </Button>
+                <>
+                  {!isDelivered && (
+                    <>
+                      {labelReady ? (
+                        <>
+                          <p className="form-hint">✓ Label Generated</p>
+                          {labelUrl ? (
+                            <>
+                              <Button
+                                variant="secondary"
+                                disabled={busy}
+                                onClick={handleViewLabel}
+                              >
+                                View Label
+                              </Button>
+                              <Button
+                                variant="secondary"
+                                disabled={busy}
+                                onClick={handleDownloadLabel}
+                              >
+                                Download Label
+                              </Button>
+                              <Button
+                                variant="secondary"
+                                disabled={busy}
+                                onClick={handlePrintLabel}
+                              >
+                                Print Label
+                              </Button>
+                            </>
+                          ) : (
+                            <p className="form-hint">
+                              Label is saved on the order. Regenerate if you need
+                              a downloadable PDF/URL.
+                            </p>
+                          )}
+                          <Button
+                            variant="outline-primary"
+                            disabled={busy || actionLoading === 'label'}
+                            onClick={handleGenerateLabel}
+                          >
+                            {actionLoading === 'label'
+                              ? 'Generating…'
+                              : 'Regenerate Label'}
+                          </Button>
+                        </>
+                      ) : (
+                        <Button
+                          variant="secondary"
+                          disabled={busy || actionLoading === 'label'}
+                          onClick={handleGenerateLabel}
+                        >
+                          {actionLoading === 'label'
+                            ? 'Generating…'
+                            : 'Generate Label'}
+                        </Button>
+                      )}
+
+                      <Button
+                        variant="secondary"
+                        disabled={
+                          busy || !labelReady || actionLoading === 'pickup'
+                        }
+                        onClick={openPickup}
+                      >
+                        {actionLoading === 'pickup'
+                          ? 'Requesting…'
+                          : 'Request Pickup'}
+                      </Button>
+                      {!labelReady ? (
+                        <p className="form-hint">
+                          Generate a label before requesting pickup.
+                        </p>
+                      ) : null}
+                    </>
+                  )}
+
+                  <Button
+                    variant="secondary"
+                    disabled={busy || actionLoading === 'tracking'}
+                    onClick={handleRefreshTracking}
+                  >
+                    {actionLoading === 'tracking'
+                      ? 'Refreshing…'
+                      : 'Track Shipment'}
+                  </Button>
+
+                  {!isDelivered && (
+                    <Button
+                      variant="secondary"
+                      disabled={busy}
+                      onClick={openEditShipment}
+                    >
+                      Update Shipment
+                    </Button>
+                  )}
+                </>
+              )}
+
+              {showNdr && !isDelivered && (
+                <div className="order-details__ndr">
+                  <h4>⚠ Delivery Exception / NDR</h4>
+                  <p className="form-hint">
+                    {extractNdrReason(order, trackingPayload) ||
+                      'Tracking or shipment indicates an NDR / exception.'}
+                  </p>
+                  <Button
+                    variant="outline-primary"
+                    disabled={busy}
+                    onClick={() => setNdrOpen(true)}
+                  >
+                    Open NDR Actions
+                  </Button>
+                </div>
               )}
             </div>
           </section>
@@ -704,7 +1150,7 @@ export default function OrderDetails() {
       {/* Confirm shipment */}
       <Modal
         open={confirmOpen}
-        title={`Send ${order.orderNumber} to Delhivery?`}
+        title={`Confirm shipment for ${order.orderNumber}?`}
         onClose={() => !busy && setConfirmOpen(false)}
         footer={
           <>
@@ -720,8 +1166,8 @@ export default function OrderDetails() {
               onClick={handleCreateShipment}
             >
               {actionLoading === 'create'
-                ? 'Sending to Delhivery...'
-                : 'Send to Delhivery'}
+                ? 'Creating Shipment...'
+                : 'Confirm & Create'}
             </Button>
           </>
         }
@@ -745,6 +1191,311 @@ export default function OrderDetails() {
             <span>Shipping address</span>
             <strong>{order.fullAddress}</strong>
           </div>
+        </div>
+      </Modal>
+
+      {/* Edit shipment */}
+      <Modal
+        open={editOpen}
+        title="Edit shipment"
+        onClose={() => !busy && setEditOpen(false)}
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              disabled={busy}
+              onClick={() => setEditOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={busy || actionLoading === 'update'}
+              onClick={handleUpdateShipment}
+            >
+              {actionLoading === 'update' ? 'Updating…' : 'Save changes'}
+            </Button>
+          </>
+        }
+      >
+        <div className="form-grid">
+          <div className="form-group form-group--full">
+            <label htmlFor="edit-name">Name</label>
+            <input
+              id="edit-name"
+              value={editForm.name}
+              onChange={(e) =>
+                setEditForm((f) => ({ ...f, name: e.target.value }))
+              }
+            />
+          </div>
+          <div className="form-group form-group--full">
+            <label htmlFor="edit-phone">Phone</label>
+            <input
+              id="edit-phone"
+              value={editForm.phone}
+              onChange={(e) =>
+                setEditForm((f) => ({ ...f, phone: e.target.value }))
+              }
+            />
+          </div>
+          <div className="form-group form-group--full">
+            <label htmlFor="edit-add">Address</label>
+            <textarea
+              id="edit-add"
+              value={editForm.add}
+              onChange={(e) =>
+                setEditForm((f) => ({ ...f, add: e.target.value }))
+              }
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="edit-cod">COD amount</label>
+            <input
+              id="edit-cod"
+              value={editForm.cod}
+              onChange={(e) =>
+                setEditForm((f) => ({ ...f, cod: e.target.value }))
+              }
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="edit-gm">Weight (gm)</label>
+            <input
+              id="edit-gm"
+              value={editForm.gm}
+              onChange={(e) =>
+                setEditForm((f) => ({ ...f, gm: e.target.value }))
+              }
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="edit-length">Length</label>
+            <input
+              id="edit-length"
+              value={editForm.shipment_length}
+              onChange={(e) =>
+                setEditForm((f) => ({ ...f, shipment_length: e.target.value }))
+              }
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="edit-width">Width</label>
+            <input
+              id="edit-width"
+              value={editForm.shipment_width}
+              onChange={(e) =>
+                setEditForm((f) => ({ ...f, shipment_width: e.target.value }))
+              }
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="edit-height">Height</label>
+            <input
+              id="edit-height"
+              value={editForm.shipment_height}
+              onChange={(e) =>
+                setEditForm((f) => ({ ...f, shipment_height: e.target.value }))
+              }
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="edit-pt">Payment type (pt)</label>
+            <input
+              id="edit-pt"
+              placeholder="COD / Pre-paid"
+              value={editForm.pt}
+              onChange={(e) =>
+                setEditForm((f) => ({ ...f, pt: e.target.value }))
+              }
+            />
+          </div>
+          <div className="form-group form-group--full">
+            <label htmlFor="edit-product">Product details</label>
+            <input
+              id="edit-product"
+              value={editForm.product_details}
+              onChange={(e) =>
+                setEditForm((f) => ({ ...f, product_details: e.target.value }))
+              }
+            />
+          </div>
+          <p className="form-hint form-group--full">
+            Only filled fields are sent. Waybill is required and added automatically.
+          </p>
+        </div>
+      </Modal>
+
+      {/* Pickup */}
+      <Modal
+        open={pickupOpen}
+        title="Request pickup"
+        onClose={() => !busy && setPickupOpen(false)}
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              disabled={busy}
+              onClick={() => setPickupOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={busy || actionLoading === 'pickup'}
+              onClick={handleRequestPickup}
+            >
+              {actionLoading === 'pickup' ? 'Requesting…' : 'Request pickup'}
+            </Button>
+          </>
+        }
+      >
+        <div className="form-grid">
+          <div className="form-group">
+            <label htmlFor="pickup-date">Pickup date</label>
+            <input
+              id="pickup-date"
+              type="date"
+              value={pickupForm.pickup_date}
+              onChange={(e) =>
+                setPickupForm((f) => ({ ...f, pickup_date: e.target.value }))
+              }
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="pickup-time">Pickup time</label>
+            <input
+              id="pickup-time"
+              type="time"
+              step="1"
+              value={pickupForm.pickup_time}
+              onChange={(e) =>
+                setPickupForm((f) => ({
+                  ...f,
+                  pickup_time: e.target.value.length === 5
+                    ? `${e.target.value}:00`
+                    : e.target.value,
+                }))
+              }
+              required
+            />
+          </div>
+          <div className="form-group form-group--full">
+            <label htmlFor="pickup-location">Pickup location</label>
+            <input
+              id="pickup-location"
+              value={pickupForm.pickup_location}
+              onChange={(e) =>
+                setPickupForm((f) => ({
+                  ...f,
+                  pickup_location: e.target.value,
+                }))
+              }
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="pickup-count">Expected package count</label>
+            <input
+              id="pickup-count"
+              type="number"
+              min="1"
+              value={pickupForm.expected_package_count}
+              onChange={(e) =>
+                setPickupForm((f) => ({
+                  ...f,
+                  expected_package_count: e.target.value,
+                }))
+              }
+            />
+          </div>
+        </div>
+      </Modal>
+
+      {/* NDR */}
+      <Modal
+        open={ndrOpen}
+        title="NDR action"
+        onClose={() => !busy && setNdrOpen(false)}
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              disabled={busy}
+              onClick={() => setNdrOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={busy || actionLoading === 'ndr'}
+              onClick={handleSubmitNdr}
+            >
+              {actionLoading === 'ndr' ? 'Submitting…' : 'Submit NDR'}
+            </Button>
+          </>
+        }
+      >
+        <div className="form-grid">
+          <div className="form-group form-group--full">
+            <label htmlFor="ndr-act">Action</label>
+            <select
+              id="ndr-act"
+              value={ndrForm.act}
+              onChange={(e) =>
+                setNdrForm((f) => ({ ...f, act: e.target.value }))
+              }
+            >
+              <option value="RE-ATTEMPT">RE-ATTEMPT</option>
+              <option value="DEFER_DLV">DEFER_DLV</option>
+              <option value="EDIT_DETAILS">EDIT_DETAILS</option>
+            </select>
+          </div>
+          {ndrForm.act === 'DEFER_DLV' && (
+            <div className="form-group form-group--full">
+              <label htmlFor="ndr-date">Deferred date</label>
+              <input
+                id="ndr-date"
+                type="date"
+                value={ndrForm.deferred_date}
+                onChange={(e) =>
+                  setNdrForm((f) => ({ ...f, deferred_date: e.target.value }))
+                }
+              />
+            </div>
+          )}
+          {ndrForm.act === 'EDIT_DETAILS' && (
+            <>
+              <div className="form-group form-group--full">
+                <label htmlFor="ndr-name">Name</label>
+                <input
+                  id="ndr-name"
+                  value={ndrForm.name}
+                  onChange={(e) =>
+                    setNdrForm((f) => ({ ...f, name: e.target.value }))
+                  }
+                />
+              </div>
+              <div className="form-group form-group--full">
+                <label htmlFor="ndr-phone">Phone</label>
+                <input
+                  id="ndr-phone"
+                  value={ndrForm.phone}
+                  onChange={(e) =>
+                    setNdrForm((f) => ({ ...f, phone: e.target.value }))
+                  }
+                />
+              </div>
+              <div className="form-group form-group--full">
+                <label htmlFor="ndr-add">Address</label>
+                <textarea
+                  id="ndr-add"
+                  value={ndrForm.add}
+                  onChange={(e) =>
+                    setNdrForm((f) => ({ ...f, add: e.target.value }))
+                  }
+                />
+              </div>
+            </>
+          )}
         </div>
       </Modal>
     </div>

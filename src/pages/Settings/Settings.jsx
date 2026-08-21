@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { changePassword, getProfile, updateProfile } from '../../services/api';
 import { Button } from '../../components/Buttons';
+import * as delhivery from '../../services/delhivery';
 import '../../styles/shared.css';
 import './Settings.css';
 
@@ -25,6 +26,11 @@ export default function Settings() {
   const [passwordError, setPasswordError] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
+  const [warehouse, setWarehouse] = useState(null);
+  const [warehouseEnv, setWarehouseEnv] = useState('staging');
+  const [warehouseError, setWarehouseError] = useState('');
+  const [warehouseMessage, setWarehouseMessage] = useState('');
+  const [savingWarehouse, setSavingWarehouse] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -53,6 +59,33 @@ export default function Settings() {
       active = false;
     };
   }, [updateUser]);
+
+  useEffect(() => {
+    delhivery.getWarehouse()
+      .then((result) => {
+        setWarehouse(result.warehouse || null);
+        setWarehouseEnv(result.environment || 'staging');
+      })
+      .catch((error) => {
+        if (error.status !== 401) setWarehouseError(error.message || 'Unable to load warehouse');
+      });
+  }, []);
+
+  const handleCreateWarehouse = async () => {
+    setSavingWarehouse(true);
+    setWarehouseError('');
+    setWarehouseMessage('');
+    try {
+      await delhivery.createWarehouse({});
+      const result = await delhivery.getWarehouse();
+      setWarehouse(result.warehouse || null);
+      setWarehouseMessage('Warehouse created or verified with Delhivery.');
+    } catch (error) {
+      setWarehouseError(error.message || 'Unable to create warehouse');
+    } finally {
+      setSavingWarehouse(false);
+    }
+  };
 
   const handleProfileSubmit = async (e) => {
     e.preventDefault();
@@ -225,6 +258,31 @@ export default function Settings() {
               </Button>
             </div>
           </form>
+        </section>
+
+        <section className="panel settings__warehouse">
+          <div className="panel__header">
+            <h3>Delhivery Warehouse</h3>
+          </div>
+          <div className="panel__body order-details__stack">
+            {warehouseMessage && <div className="alert alert--success">{warehouseMessage}</div>}
+            {warehouseError && <div className="alert alert--error">{warehouseError}</div>}
+            <p className="form-hint">Environment: <strong>{warehouseEnv}</strong></p>
+            {warehouse ? (
+              <>
+                <div><span>Warehouse Name</span><strong>{warehouse.name || '—'}</strong></div>
+                <div><span>Address</span><strong>{warehouse.address || '—'}</strong></div>
+                <div><span>City / State</span><strong>{[warehouse.city, warehouse.state].filter(Boolean).join(', ') || '—'}</strong></div>
+                <div><span>Pincode</span><strong>{warehouse.pincode || '—'}</strong></div>
+                <div><span>Phone</span><strong>{warehouse.phone || '—'}</strong></div>
+                <Button disabled={savingWarehouse} onClick={handleCreateWarehouse}>
+                  {savingWarehouse ? 'Verifying…' : 'Create / Verify with Delhivery'}
+                </Button>
+              </>
+            ) : (
+              <p className="form-hint">Configure the TELAQUA_WAREHOUSE_* variables on the backend.</p>
+            )}
+          </div>
         </section>
       </div>
     </div>

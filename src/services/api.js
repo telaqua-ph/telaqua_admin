@@ -197,7 +197,9 @@ export function normalizeOrder(order) {
     isSeen: Boolean(order.is_seen ?? order.isSeen ?? false),
     firstViewedAt: order.first_viewed_at || order.firstViewedAt || null,
     lastViewedAt: order.last_viewed_at || order.lastViewedAt || null,
-    // Shipment / Delhivery fields (orders table)
+    // Shipment / Delhivery fields
+    shipmentRecordId: order.shipment_record_id || order.shipmentRecordId || null,
+    fulfillmentStatus: order.fulfillment_status || order.fulfillmentStatus || 'unfulfilled',
     shipmentStatus: order.shipment_status || order.shipmentStatus || 'Not Created',
     waybill: order.waybill || '',
     delhiveryShipmentId:
@@ -214,6 +216,11 @@ export function normalizeOrder(order) {
     trackingUpdatedAt: order.tracking_updated_at || null,
     trackingUpdatedAtLabel: formatDateTime(order.tracking_updated_at),
     shipmentError: order.shipment_error || order.shipmentError || '',
+    expectedDeliveryDate: order.expected_delivery_date || null,
+    estimatedTat: order.estimated_tat || null,
+    shippingCharge: order.shipping_charge ?? null,
+    ndrStatus: order.ndr_status || '',
+    ndrReason: order.ndr_reason || '',
   };
 }
 
