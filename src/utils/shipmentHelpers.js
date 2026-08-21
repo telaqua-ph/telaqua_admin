@@ -34,7 +34,7 @@ export function isShipmentCreated(order) {
   return (
     hasStoredDelhiveryShipmentId(order) ||
     isCreatedShipmentStatus(order) ||
-    ['shipment_created', 'pickup_requested', 'picked_up', 'in_transit', 'out_for_delivery', 'delivered', 'ndr', 'returned']
+    ['shipment_created', 'pickup_requested', 'pickup_failed', 'picked_up', 'in_transit', 'out_for_delivery', 'delivered', 'delivery_failed', 'ndr', 'rto', 'returned']
       .includes(String(order?.fulfillmentStatus || order?.fulfillment_status || '').toLowerCase())
   );
 }

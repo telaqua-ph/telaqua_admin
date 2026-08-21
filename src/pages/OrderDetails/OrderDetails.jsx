@@ -39,7 +39,6 @@ import './OrderDetails.css';
 const emptyPickup = {
   pickup_date: '',
   pickup_time: '18:30:00',
-  pickup_location: 'Telaqua WH',
   expected_package_count: 1,
 };
 
@@ -69,6 +68,7 @@ export default function OrderDetails() {
   const [deleting, setDeleting] = useState(false);
   const [actionLoading, setActionLoading] = useState('');
   const [trackingPayload, setTrackingPayload] = useState(null);
+  const [trackingHistory, setTrackingHistory] = useState([]);
   const [logisticsChecks, setLogisticsChecks] = useState({
     serviceability: null,
     tat: null,
@@ -95,6 +95,7 @@ export default function OrderDetails() {
   const [editOpen, setEditOpen] = useState(false);
   const [pickupOpen, setPickupOpen] = useState(false);
   const [ndrOpen, setNdrOpen] = useState(false);
+  const [ndrActions, setNdrActions] = useState([]);
 
   const [editForm, setEditForm] = useState(emptyEditForm);
   const [pickupForm, setPickupForm] = useState(emptyPickup);
@@ -110,8 +111,12 @@ export default function OrderDetails() {
   const paymentStatuses = getPaymentStatuses();
 
   const refreshOrder = useCallback(async () => {
-    const data = await getOrderById(id);
+    const [data, logistics] = await Promise.all([
+      getOrderById(id),
+      delhivery.getOrderLogistics(id).catch(() => null),
+    ]);
     setOrder(data);
+    setTrackingHistory(Array.isArray(logistics?.tracking_history) ? logistics.tracking_history : []);
     if (data) {
       setStatus(data.status);
       setPaymentStatus(data.paymentStatus);
@@ -125,7 +130,10 @@ export default function OrderDetails() {
       setLoading(true);
       setError('');
       try {
-        const data = await getOrderById(id);
+        const [data, logistics] = await Promise.all([
+          getOrderById(id),
+          delhivery.getOrderLogistics(id).catch(() => null),
+        ]);
         if (!active) return;
         if (!data) {
           setError('Order not found');
@@ -133,6 +141,7 @@ export default function OrderDetails() {
           return;
         }
         setOrder(data);
+        setTrackingHistory(Array.isArray(logistics?.tracking_history) ? logistics.tracking_history : []);
         setStatus(data.status);
         setPaymentStatus(data.paymentStatus);
         markOrderSeen(id).catch(() => {});
@@ -165,6 +174,7 @@ export default function OrderDetails() {
     () => extractLabelUrl(null, order?.labelData),
     [order?.labelData]
   );
+  const displayedShippingCharge = order?.shippingCharge ?? logisticsChecks.rate?.shipping_charge ?? null;
 
   const runAction = async (key, fn, successMsg) => {
     setActionLoading(key);
@@ -433,7 +443,7 @@ export default function OrderDetails() {
     setPickupForm({
       ...emptyPickup,
       pickup_date: tomorrow.toISOString().slice(0, 10),
-      expected_package_count: Math.max(1, Number(order?.quantity) || 1),
+      expected_package_count: 1,
     });
     setPickupOpen(true);
   };
@@ -442,10 +452,9 @@ export default function OrderDetails() {
     if (actionLoading === 'pickup') return;
     if (
       !pickupForm.pickup_date ||
-      !pickupForm.pickup_time ||
-      !pickupForm.pickup_location.trim()
+      !pickupForm.pickup_time
     ) {
-      setError('Pickup date, time, and location are required.');
+      setError('Pickup date and time are required.');
       return;
     }
 
@@ -465,7 +474,6 @@ export default function OrderDetails() {
         delhivery.requestPickup({
           pickup_time: pickupForm.pickup_time,
           pickup_date: pickupForm.pickup_date,
-          pickup_location: pickupForm.pickup_location.trim(),
           expected_package_count: Number(pickupForm.expected_package_count) || 1,
           order_id: Number(order.id) || order.id,
           waybill: order.waybill || undefined,
@@ -513,19 +521,45 @@ export default function OrderDetails() {
     setNdrOpen(false);
   };
 
+  const handleOpenNdr = async () => {
+    const details = await runAction(
+      'ndr-load',
+      () => delhivery.getNdr({ order_id: Number(order.id) || order.id }),
+      null
+    );
+    if (!details) return;
+    const actions = Array.isArray(details.actions) ? details.actions : [];
+    if (!actions.length) {
+      setError('Delhivery has not exposed any supported NDR action for the current shipment state.');
+      return;
+    }
+    setNdrActions(actions);
+    setNdrForm((current) => ({ ...current, act: actions[0] }));
+    setNdrOpen(true);
+  };
+
   const timeline = useMemo(
     () => buildFulfillmentTimeline(order),
     [order]
   );
   const trackingEvents = useMemo(
-    () => extractTrackingEvents(trackingPayload),
-    [trackingPayload]
+    () => trackingHistory.length
+      ? trackingHistory.map((event) => ({
+          label: event.status,
+          at: event.event_time || event.created_at || '',
+          location: event.location || '',
+        }))
+      : extractTrackingEvents(trackingPayload),
+    [trackingHistory, trackingPayload]
   );
   const isDelivered =
     String(order?.trackingStatus || '')
       .toLowerCase()
       .includes('delivered') ||
-    String(order?.shipmentStatus || '').toLowerCase() === 'delivered';
+    String(order?.shipmentStatus || '').toLowerCase() === 'delivered' ||
+    String(order?.fulfillmentStatus || '').toLowerCase() === 'delivered';
+  const pickupAlreadyRequested = Boolean(order?.pickupRequestedAt) ||
+    /request|scheduled|confirmed/i.test(String(order?.pickupStatus || ''));
 
   if (loading) {
     return <div className="loading-state">Loading order…</div>;
@@ -793,6 +827,34 @@ export default function OrderDetails() {
                 <strong>{order.shipmentCreatedAtLabel}</strong>
               </div>
               <div>
+                <span>Serviceability</span>
+                <strong>
+                  {order.serviceable == null
+                    ? 'Not Checked'
+                    : order.serviceable
+                      ? 'Serviceable'
+                      : 'Not Serviceable'}
+                </strong>
+                {order.serviceabilityMessage ? <p>{order.serviceabilityMessage}</p> : null}
+                {order.serviceabilityCheckedAt ? <p>Checked: {order.serviceabilityCheckedAtLabel}</p> : null}
+              </div>
+              <div>
+                <span>Estimated delivery</span>
+                <strong>{order.expectedDeliveryDate || order.estimatedTat || 'Not Checked'}</strong>
+                {order.expectedDeliveryDate && order.estimatedTat ? <p>{order.estimatedTat}</p> : null}
+                {order.tatCheckedAt ? <p>Checked: {order.tatCheckedAtLabel}</p> : null}
+              </div>
+              <div>
+                <span>Shipping charge</span>
+                <strong>{displayedShippingCharge == null ? 'Not Calculated' : `₹${displayedShippingCharge}`}</strong>
+                {order.rateCalculatedAt ? <p>Calculated: {order.rateCalculatedAtLabel}</p> : null}
+              </div>
+              <div>
+                <span>Label</span>
+                <strong>{order.labelStatus || (labelReady ? 'Generated' : 'Not Generated')}</strong>
+                {order.labelGeneratedAt ? <p>{order.labelGeneratedAtLabel}</p> : null}
+              </div>
+              <div>
                 <span>Pickup status</span>
                 <strong>
                   <StatusBadge status={order.pickupStatus || 'Not Requested'} />
@@ -801,6 +863,11 @@ export default function OrderDetails() {
               <div>
                 <span>Pickup requested</span>
                 <strong>{order.pickupRequestedAtLabel}</strong>
+              </div>
+              <div>
+                <span>Pickup reference</span>
+                <strong>{order.pickupReference || '—'}</strong>
+                {order.pickupLocation ? <p>{order.pickupLocation}</p> : null}
               </div>
             </div>
 
@@ -812,8 +879,16 @@ export default function OrderDetails() {
                   <strong>{order.trackingStatus || 'Not Available'}</strong>
                 </div>
                 <div>
-                  <span>Last Updated</span>
+                  <span>Status Time</span>
                   <strong>{order.trackingUpdatedAtLabel || '—'}</strong>
+                </div>
+                <div>
+                  <span>Last Refreshed</span>
+                  <strong>{order.trackingRefreshedAtLabel || '—'}</strong>
+                </div>
+                <div>
+                  <span>Current Location</span>
+                  <strong>{order.trackingLocation || 'Not Available'}</strong>
                 </div>
                 <div>
                   <span>AWB</span>
@@ -857,6 +932,7 @@ export default function OrderDetails() {
                     <li key={`${event.label}-${index}`}>
                       <strong>{event.label}</strong>
                       {event.at ? <span>{event.at}</span> : null}
+                      {event.location ? <span>{event.location}</span> : null}
                     </li>
                   ))}
                 </ul>
@@ -978,19 +1054,19 @@ export default function OrderDetails() {
                 {actionLoading === 'rate' ? 'Calculating…' : 'Calculate Shipping Charge'}
               </Button>
 
-              {logisticsChecks.serviceability && (
+              {(order.serviceable != null || logisticsChecks.serviceability) && (
                 <p className="form-hint">
-                  Serviceability: <strong>{logisticsChecks.serviceability.serviceable ? 'Serviceable' : 'Not Serviceable'}</strong>
+                  Serviceability: <strong>{(order.serviceable ?? logisticsChecks.serviceability?.serviceable) ? 'Serviceable' : 'Not Serviceable'}</strong>
                 </p>
               )}
-              {logisticsChecks.tat && (
+              {(order.expectedDeliveryDate || order.estimatedTat || logisticsChecks.tat) && (
                 <p className="form-hint">
-                  Estimated delivery: <strong>{logisticsChecks.tat.expected_delivery_date || logisticsChecks.tat.estimated_tat || 'See API message'}</strong>
+                  Estimated delivery: <strong>{order.expectedDeliveryDate || order.estimatedTat || logisticsChecks.tat?.expected_delivery_date || logisticsChecks.tat?.estimated_tat || 'See API message'}</strong>
                 </p>
               )}
-              {logisticsChecks.rate && (
+              {displayedShippingCharge != null && (
                 <p className="form-hint">
-                  Shipping charge: <strong>{logisticsChecks.rate.shipping_charge == null ? 'See API details' : `₹${logisticsChecks.rate.shipping_charge}`}</strong>
+                  Shipping charge: <strong>₹{displayedShippingCharge}</strong>
                 </p>
               )}
 
@@ -1026,7 +1102,7 @@ export default function OrderDetails() {
                 <p className="form-hint">Generate one waybill before creating the shipment.</p>
               )}
 
-              {waybillReady && (
+              {shipmentReady && waybillReady && (
                 <>
                   {!isDelivered && (
                     <>
@@ -1088,19 +1164,16 @@ export default function OrderDetails() {
                       <Button
                         variant="secondary"
                         disabled={
-                          busy || !labelReady || actionLoading === 'pickup'
+                          busy || pickupAlreadyRequested || actionLoading === 'pickup'
                         }
                         onClick={openPickup}
                       >
-                        {actionLoading === 'pickup'
+                        {pickupAlreadyRequested
+                          ? 'Pickup Requested'
+                          : actionLoading === 'pickup'
                           ? 'Requesting…'
                           : 'Request Pickup'}
                       </Button>
-                      {!labelReady ? (
-                        <p className="form-hint">
-                          Generate a label before requesting pickup.
-                        </p>
-                      ) : null}
                     </>
                   )}
 
@@ -1135,10 +1208,10 @@ export default function OrderDetails() {
                   </p>
                   <Button
                     variant="outline-primary"
-                    disabled={busy}
-                    onClick={() => setNdrOpen(true)}
+                    disabled={busy || actionLoading === 'ndr-load'}
+                    onClick={handleOpenNdr}
                   >
-                    Open NDR Actions
+                    {actionLoading === 'ndr-load' ? 'Loading Actions…' : 'Open NDR Actions'}
                   </Button>
                 </div>
               )}
@@ -1379,20 +1452,9 @@ export default function OrderDetails() {
               required
             />
           </div>
-          <div className="form-group form-group--full">
-            <label htmlFor="pickup-location">Pickup location</label>
-            <input
-              id="pickup-location"
-              value={pickupForm.pickup_location}
-              onChange={(e) =>
-                setPickupForm((f) => ({
-                  ...f,
-                  pickup_location: e.target.value,
-                }))
-              }
-              required
-            />
-          </div>
+          <p className="form-hint form-group--full">
+            Delhivery will use the registered backend warehouse/pickup-location name.
+          </p>
           <div className="form-group">
             <label htmlFor="pickup-count">Expected package count</label>
             <input
@@ -1444,9 +1506,9 @@ export default function OrderDetails() {
                 setNdrForm((f) => ({ ...f, act: e.target.value }))
               }
             >
-              <option value="RE-ATTEMPT">RE-ATTEMPT</option>
-              <option value="DEFER_DLV">DEFER_DLV</option>
-              <option value="EDIT_DETAILS">EDIT_DETAILS</option>
+              {ndrActions.map((action) => (
+                <option key={action} value={action}>{action}</option>
+              ))}
             </select>
           </div>
           {ndrForm.act === 'DEFER_DLV' && (

@@ -28,6 +28,7 @@ export default function Settings() {
   const [savingPassword, setSavingPassword] = useState(false);
   const [warehouse, setWarehouse] = useState(null);
   const [warehouseEnv, setWarehouseEnv] = useState('staging');
+  const [logisticsReadiness, setLogisticsReadiness] = useState(null);
   const [warehouseError, setWarehouseError] = useState('');
   const [warehouseMessage, setWarehouseMessage] = useState('');
   const [savingWarehouse, setSavingWarehouse] = useState(false);
@@ -65,6 +66,7 @@ export default function Settings() {
       .then((result) => {
         setWarehouse(result.warehouse || null);
         setWarehouseEnv(result.environment || 'staging');
+        setLogisticsReadiness(result.readiness || null);
       })
       .catch((error) => {
         if (error.status !== 401) setWarehouseError(error.message || 'Unable to load warehouse');
@@ -79,6 +81,7 @@ export default function Settings() {
       await delhivery.createWarehouse({});
       const result = await delhivery.getWarehouse();
       setWarehouse(result.warehouse || null);
+      setLogisticsReadiness(result.readiness || null);
       setWarehouseMessage('Warehouse created or verified with Delhivery.');
     } catch (error) {
       setWarehouseError(error.message || 'Unable to create warehouse');
@@ -268,6 +271,11 @@ export default function Settings() {
             {warehouseMessage && <div className="alert alert--success">{warehouseMessage}</div>}
             {warehouseError && <div className="alert alert--error">{warehouseError}</div>}
             <p className="form-hint">Environment: <strong>{warehouseEnv}</strong></p>
+            {logisticsReadiness && !logisticsReadiness.ready ? (
+              <div className="alert alert--error">
+                Backend configuration is incomplete. Add these server environment variables: {logisticsReadiness.missing.join(', ')}.
+              </div>
+            ) : null}
             {warehouse ? (
               <>
                 <div><span>Warehouse Name</span><strong>{warehouse.name || '—'}</strong></div>

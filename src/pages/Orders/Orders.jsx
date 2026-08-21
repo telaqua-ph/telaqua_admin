@@ -33,11 +33,13 @@ const SHIPMENT_FILTERS = [
   'Ready to Ship',
   'Shipment Created',
   'Pickup Requested',
+  'Pickup Failed',
   'Picked Up',
   'In Transit',
   'Out for Delivery',
   'Delivered',
   'NDR / Exceptions',
+  'RTO / Returning',
   'Returned',
   'Failed',
 ];

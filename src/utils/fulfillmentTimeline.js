@@ -253,7 +253,9 @@ export function fulfillmentListLabel(order) {
     out_for_delivery: 'Out for Delivery',
     delivered: 'Delivered',
     delivery_failed: 'Failed',
+    pickup_failed: 'Pickup Failed',
     ndr: 'NDR / Exceptions',
+    rto: 'RTO / Returning',
     cancelled: 'Cancelled',
     returned: 'Returned',
   };
@@ -302,6 +304,7 @@ export function matchesFulfillmentBucket(order, bucket) {
     ofd: 'Out for Delivery',
     delivered: 'Delivered',
     ndr: 'NDR / Exceptions',
+    rto: 'RTO / Returning',
     failed: 'Failed',
   };
   if (bucket === 'ndr') {
