@@ -607,6 +607,11 @@ export default function Orders() {
       render: (row) => `₹${row.total}`,
     },
     {
+      key: 'status',
+      label: 'Order Status',
+      render: (row) => <StatusBadge status={row.status || '—'} />,
+    },
+    {
       key: 'paymentStatus',
       label: 'Payment',
       render: (row) => (
