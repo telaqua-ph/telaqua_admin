@@ -168,7 +168,11 @@ export default function Fulfillment() {
     {
       key: 'shipment',
       label: 'Delhivery',
-      render: (row) => <StatusBadge status={fulfillmentListLabel(row)} />,
+      render: (row) => (
+        <StatusBadge
+          status={row.shipmentStatusDisplay || fulfillmentListLabel(row)}
+        />
+      ),
     },
     {
       key: 'date',

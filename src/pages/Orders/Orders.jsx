@@ -27,6 +27,14 @@ import './Orders.css';
 
 const PAGE_SIZE = 10;
 
+const ORDER_STATUS_LABELS = {
+  READY_TO_SHIP: 'Ready to Ship',
+  READY_TO_PICKUP: 'Ready to Pickup',
+  IN_TRANSIT: 'In Transit',
+  OUT_FOR_DELIVERY: 'Out for Delivery',
+  DELIVERED: 'Delivered',
+};
+
 const SHIPMENT_FILTERS = [
   'All',
   'Unfulfilled',
@@ -607,9 +615,13 @@ export default function Orders() {
       render: (row) => `₹${row.total}`,
     },
     {
-      key: 'status',
+      key: 'displayStatus',
       label: 'Order Status',
-      render: (row) => <StatusBadge status={row.status || '—'} />,
+      render: (row) => (
+        <StatusBadge
+          status={ORDER_STATUS_LABELS[row.displayStatus] || row.status || '—'}
+        />
+      ),
     },
     {
       key: 'paymentStatus',
@@ -641,7 +653,11 @@ export default function Orders() {
     {
       key: 'shipmentStatus',
       label: 'Shipment',
-      render: (row) => <StatusBadge status={fulfillmentListLabel(row)} />,
+      render: (row) => (
+        <StatusBadge
+          status={row.shipmentStatusDisplay || fulfillmentListLabel(row)}
+        />
+      ),
     },
     {
       key: 'waybill',

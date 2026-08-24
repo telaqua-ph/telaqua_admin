@@ -76,11 +76,6 @@ export async function getTrackingHistory(extras = {}) {
   return apiRequest(`/api/admin/logistics/shipments/${shipmentId}/tracking`);
 }
 
-export async function getLabel(_waybill, extras = {}) {
-  const shipmentId = await resolveShipmentId(extras);
-  return apiRequest(`/api/admin/logistics/shipments/${shipmentId}/label`);
-}
-
 export async function requestPickup(data) {
   const shipmentId = await resolveShipmentId(data);
   const body = Object.fromEntries(Object.entries(data).filter(([key]) => !['shipment_id', 'shipmentId', 'order_id', 'orderId', 'waybill'].includes(key)));

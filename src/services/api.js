@@ -183,6 +183,7 @@ export function normalizeOrder(order) {
     ) || 0,
     paymentMethod: order.payment_method || order.paymentMethod || '—',
     paymentStatus: order.payment_status || order.paymentStatus || 'Pending',
+    displayStatus: order.display_status || order.displayStatus || '',
     paymentId:
       order.payment_id ||
       order.razorpay_payment_id ||
@@ -201,6 +202,13 @@ export function normalizeOrder(order) {
     shipmentRecordId: order.shipment_record_id || order.shipmentRecordId || null,
     fulfillmentStatus: order.fulfillment_status || order.fulfillmentStatus || 'unfulfilled',
     shipmentStatus: order.shipment_status || order.shipmentStatus || 'Not Created',
+    shipmentStatusDisplay:
+      order.shipment_status_display || order.shipmentStatusDisplay || '',
+    shipmentStatusUpdatedAt:
+      order.shipment_status_updated_at || order.shipmentStatusUpdatedAt || null,
+    shipmentStatusUpdatedAtLabel: formatDateTime(
+      order.shipment_status_updated_at || order.shipmentStatusUpdatedAt
+    ),
     waybill: order.waybill || '',
     delhiveryShipmentId:
       order.delhivery_shipment_id || order.delhiveryShipmentId || '',

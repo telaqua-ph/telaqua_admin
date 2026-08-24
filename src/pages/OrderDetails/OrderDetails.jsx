@@ -297,18 +297,6 @@ export default function OrderDetails() {
     }
   };
 
-  const handleGenerateLabel = async () => {
-    if (!order?.waybill || actionLoading === 'label') return;
-    await runAction(
-      'label',
-      () =>
-        delhivery.getLabel(order.waybill, {
-          order_id: Number(order.id) || order.id,
-        }),
-      'Label Generated'
-    );
-  };
-
   const handleCheckServiceability = async () => {
     const result = await runAction(
       'serviceability',
@@ -784,7 +772,9 @@ export default function OrderDetails() {
           <section className="panel">
             <div className="panel__header">
               <h3>Fulfillment / Delivery</h3>
-              <StatusBadge status={fulfillmentListLabel(order)} />
+              <StatusBadge
+                status={order.shipmentStatusDisplay || fulfillmentListLabel(order)}
+              />
             </div>
             <div className="panel__body order-details__fields">
               <div>
@@ -876,11 +866,15 @@ export default function OrderDetails() {
               <div className="order-details__fields">
                 <div>
                   <span>Current Status</span>
-                  <strong>{order.trackingStatus || 'Not Available'}</strong>
+                  <strong>
+                    {order.shipmentStatusDisplay || order.trackingStatus || 'Not Available'}
+                  </strong>
                 </div>
                 <div>
                   <span>Status Time</span>
-                  <strong>{order.trackingUpdatedAtLabel || '—'}</strong>
+                  <strong>
+                    {order.shipmentStatusUpdatedAtLabel || order.trackingUpdatedAtLabel || '—'}
+                  </strong>
                 </div>
                 <div>
                   <span>Last Refreshed</span>
@@ -1106,7 +1100,7 @@ export default function OrderDetails() {
                 <>
                   {!isDelivered && (
                     <>
-                      {labelReady ? (
+                      {labelReady && (
                         <>
                           <p className="form-hint">✓ Label Generated</p>
                           {labelUrl ? (
@@ -1135,30 +1129,10 @@ export default function OrderDetails() {
                             </>
                           ) : (
                             <p className="form-hint">
-                              Label is saved on the order. Regenerate if you need
-                              a downloadable PDF/URL.
+                              The saved label has no downloadable PDF/URL.
                             </p>
                           )}
-                          <Button
-                            variant="outline-primary"
-                            disabled={busy || actionLoading === 'label'}
-                            onClick={handleGenerateLabel}
-                          >
-                            {actionLoading === 'label'
-                              ? 'Generating…'
-                              : 'Regenerate Label'}
-                          </Button>
                         </>
-                      ) : (
-                        <Button
-                          variant="secondary"
-                          disabled={busy || actionLoading === 'label'}
-                          onClick={handleGenerateLabel}
-                        >
-                          {actionLoading === 'label'
-                            ? 'Generating…'
-                            : 'Generate Label'}
-                        </Button>
                       )}
 
                       <Button
