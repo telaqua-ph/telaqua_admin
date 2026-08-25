@@ -34,6 +34,7 @@ export default function Fulfillment() {
   const [metricFilter, setMetricFilter] = useState('');
   const [search, setSearch] = useState('');
   const [paymentFilter, setPaymentFilter] = useState('All');
+  const [paymentModeFilter, setPaymentModeFilter] = useState('All');
   const [shipmentFilter, setShipmentFilter] = useState('All');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -100,6 +101,8 @@ export default function Fulfillment() {
 
       const matchesPayment =
         paymentFilter === 'All' || order.paymentStatus === paymentFilter;
+      const matchesPaymentMode =
+        paymentModeFilter === 'All' || order.paymentMode === paymentModeFilter;
 
       const shipLabel = fulfillmentListLabel(order);
       const matchesShipment =
@@ -120,6 +123,7 @@ export default function Fulfillment() {
 
       return (
         matchesPayment &&
+        matchesPaymentMode &&
         matchesShipment &&
         matchesFrom &&
         matchesTo &&
@@ -132,6 +136,7 @@ export default function Fulfillment() {
     metricFilter,
     search,
     paymentFilter,
+    paymentModeFilter,
     shipmentFilter,
     dateFrom,
     dateTo,
@@ -146,7 +151,7 @@ export default function Fulfillment() {
 
   useEffect(() => {
     setPage(1);
-  }, [bucket, metricFilter, search, paymentFilter, shipmentFilter, dateFrom, dateTo]);
+  }, [bucket, metricFilter, search, paymentFilter, paymentModeFilter, shipmentFilter, dateFrom, dateTo]);
 
   const columns = [
     { key: 'orderNumber', label: 'Order' },
@@ -299,6 +304,15 @@ export default function Fulfillment() {
               <option value="Pending">Pending</option>
               <option value="Failed">Failed</option>
               <option value="Refunded">Refunded</option>
+            </select>
+            <select
+              className="toolbar__select"
+              value={paymentModeFilter}
+              onChange={(e) => setPaymentModeFilter(e.target.value)}
+            >
+              <option value="All">All payment modes</option>
+              <option value="COD">COD</option>
+              <option value="Razorpay">Razorpay</option>
             </select>
             <select
               className="toolbar__select"

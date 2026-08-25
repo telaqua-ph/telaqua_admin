@@ -90,6 +90,7 @@ export default function Orders() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [paymentFilter, setPaymentFilter] = useState('All');
+  const [paymentModeFilter, setPaymentModeFilter] = useState('All');
   const [shipmentFilter, setShipmentFilter] = useState('All');
   const [metricFilter, setMetricFilter] = useState('');
   const [unseenOnly, setUnseenOnly] = useState(false);
@@ -179,6 +180,8 @@ export default function Orders() {
 
       const matchesPayment =
         paymentFilter === 'All' || order.paymentStatus === paymentFilter;
+      const matchesPaymentMode =
+        paymentModeFilter === 'All' || order.paymentMode === paymentModeFilter;
       const matchesSeen = !unseenOnly || !order.isSeen;
       let matchesShipment = true;
       if (shipmentFilter !== 'All') {
@@ -205,6 +208,7 @@ export default function Orders() {
       return (
         matchesSeen &&
         matchesPayment &&
+        matchesPaymentMode &&
         matchesShipment &&
         matchesFrom &&
         matchesTo &&
@@ -226,6 +230,7 @@ export default function Orders() {
     search,
     statusFilter,
     paymentFilter,
+    paymentModeFilter,
     shipmentFilter,
     metricFilter,
     unseenOnly,
@@ -248,6 +253,7 @@ export default function Orders() {
     search,
     statusFilter,
     paymentFilter,
+    paymentModeFilter,
     shipmentFilter,
     metricFilter,
     unseenOnly,
@@ -263,6 +269,7 @@ export default function Orders() {
     search,
     statusFilter,
     paymentFilter,
+    paymentModeFilter,
     shipmentFilter,
     metricFilter,
     unseenOnly,
@@ -952,6 +959,17 @@ export default function Orders() {
                   {status}
                 </option>
               ))}
+            </select>
+
+            <select
+              className="toolbar__select"
+              value={paymentModeFilter}
+              onChange={(e) => setPaymentModeFilter(e.target.value)}
+              disabled={bulkBusy}
+            >
+              <option value="All">All payment modes</option>
+              <option value="COD">COD</option>
+              <option value="Razorpay">Razorpay</option>
             </select>
 
             <select
