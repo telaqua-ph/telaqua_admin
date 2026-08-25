@@ -5,6 +5,7 @@ import {
   getOrderById,
   getOrderStatuses,
   getPaymentStatuses,
+  markCodPaymentPaid,
   markOrderSeen,
   updateOrderStatus,
 } from '../../services/api';
@@ -18,6 +19,7 @@ import {
   extractNdrReason,
   extractWaybillFromResponse,
   hasWaybill,
+  isCodOrder,
   isShipmentCreated,
   looksLikeNdr,
   openLabelAsset,
@@ -163,6 +165,9 @@ export default function OrderDetails() {
   const shipmentReady = isShipmentCreated(order);
   const waybillReady = hasWaybill(order);
   const createAllowed = canCreateShipment(order);
+  const canCollectCod =
+    isCodOrder(order) &&
+    String(order?.paymentStatus || '').toLowerCase() === 'pending';
   const showNdr = looksLikeNdr(order);
   const labelReady = Boolean(
     order?.labelData &&
@@ -217,6 +222,19 @@ export default function OrderDetails() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleMarkCodPaid = async () => {
+    if (actionLoading === 'cod-paid') return;
+    const ok = window.confirm(
+      `Mark COD payment as Paid for ${order?.orderNumber || id}?`
+    );
+    if (!ok) return;
+    await runAction(
+      'cod-paid',
+      () => markCodPaymentPaid(id),
+      'COD payment marked as Paid.'
+    );
   };
 
   const handleDelete = async () => {
@@ -705,6 +723,10 @@ export default function OrderDetails() {
                 </strong>
               </div>
               <div>
+                <span>Payment mode</span>
+                <strong>{order.paymentMode || '—'}</strong>
+              </div>
+              <div>
                 <span>Payment method</span>
                 <strong>{order.paymentMethod}</strong>
               </div>
@@ -738,6 +760,10 @@ export default function OrderDetails() {
               <h3>Payment</h3>
             </div>
             <div className="panel__body order-details__fields">
+              <div>
+                <span>Payment mode</span>
+                <strong>{order.paymentMode || '—'}</strong>
+              </div>
               <div>
                 <span>Payment method</span>
                 <strong>{order.paymentMethod}</strong>
@@ -969,6 +995,7 @@ export default function OrderDetails() {
                   <select
                     id="paymentStatus"
                     value={paymentStatus}
+                    disabled
                     onChange={(e) => setPaymentStatus(e.target.value)}
                   >
                     {!paymentStatuses.includes(paymentStatus) && paymentStatus ? (
@@ -980,8 +1007,26 @@ export default function OrderDetails() {
                       </option>
                     ))}
                   </select>
+                  <p className="form-hint">
+                    {isCodOrder(order)
+                      ? 'COD payment is collected with Mark COD Payment as Paid.'
+                      : 'Razorpay payment status is updated by payment verification and webhooks.'}
+                  </p>
                 </div>
               </div>
+              {canCollectCod ? (
+                <div className="form-actions">
+                  <Button
+                    type="button"
+                    disabled={busy || actionLoading === 'cod-paid'}
+                    onClick={handleMarkCodPaid}
+                  >
+                    {actionLoading === 'cod-paid'
+                      ? 'Updating…'
+                      : 'Mark COD Payment as Paid'}
+                  </Button>
+                </div>
+              ) : null}
               <div className="form-actions">
                 <Button type="submit" disabled={saving || !hasChanges}>
                   {saving ? 'Saving…' : 'Save'}

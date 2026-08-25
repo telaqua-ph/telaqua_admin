@@ -45,11 +45,28 @@ export function formatAwbDisplay(order) {
   return '—';
 }
 
+export function isCodOrder(order) {
+  const mode = String(order?.paymentMode || order?.payment_mode || '')
+    .toLowerCase()
+    .trim();
+  if (mode === 'cod') return true;
+  if (mode === 'razorpay') return false;
+  const method = String(
+    order?.paymentMethod || order?.payment_method || ''
+  )
+    .toLowerCase()
+    .trim();
+  return method === 'cod' || method.includes('cash on delivery');
+}
+
 export function canCreateShipment(order) {
   if (!order) return false;
   if (isShipmentCreated(order)) return false;
 
-  const pay = String(order.paymentStatus || '').toLowerCase();
+  const pay = String(order.paymentStatus || order.payment_status || '').toLowerCase();
+  if (isCodOrder(order)) {
+    return pay === 'pending' || pay === 'paid';
+  }
   return pay === 'paid';
 }
 

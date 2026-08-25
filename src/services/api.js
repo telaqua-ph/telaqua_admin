@@ -146,6 +146,21 @@ function formatDateTime(value) {
   });
 }
 
+function displayPaymentMode(order) {
+  const mode = String(order?.payment_mode || order?.paymentMode || '')
+    .trim()
+    .toLowerCase();
+  if (mode === 'cod') return 'COD';
+  if (mode === 'razorpay') return 'Razorpay';
+  const method = String(
+    order?.payment_method || order?.paymentMethod || ''
+  )
+    .trim()
+    .toLowerCase();
+  if (method === 'cod' || method.includes('cash on delivery')) return 'COD';
+  return 'Razorpay';
+}
+
 /** Normalize API snake_case order into UI-friendly fields. */
 export function normalizeOrder(order) {
   if (!order) return null;
@@ -182,6 +197,7 @@ export function normalizeOrder(order) {
       order.discount_amount ?? order.discountAmount ?? 0
     ) || 0,
     paymentMethod: order.payment_method || order.paymentMethod || '—',
+    paymentMode: displayPaymentMode(order),
     paymentStatus: order.payment_status || order.paymentStatus || 'Pending',
     displayStatus: order.display_status || order.displayStatus || '',
     paymentId:
@@ -279,6 +295,22 @@ export async function updateOrderStatus(id, status, paymentStatus) {
   const data = await apiRequest(`/api/orders/${id}`, {
     method: 'PUT',
     body,
+  });
+  return normalizeOrder(unwrapItem(data)) || (await getOrderById(id));
+}
+
+export async function createManualCodOrder(payload) {
+  const data = await apiRequest('/api/orders/manual-cod', {
+    method: 'POST',
+    body: payload,
+  });
+  return normalizeOrder(unwrapItem(data));
+}
+
+export async function markCodPaymentPaid(id) {
+  const data = await apiRequest(`/api/orders/${id}/cod-payment`, {
+    method: 'PATCH',
+    body: {},
   });
   return normalizeOrder(unwrapItem(data)) || (await getOrderById(id));
 }

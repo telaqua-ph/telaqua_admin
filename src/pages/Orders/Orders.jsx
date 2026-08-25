@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
+  createManualCodOrder,
   deleteOrder,
   getOrderById,
   getOrders,
@@ -10,12 +11,14 @@ import {
 import * as delhivery from '../../services/delhivery';
 import { DataTable } from '../../components/Tables';
 import { Button } from '../../components/Buttons';
+import { Modal } from '../../components/Modal';
 import StatusBadge from '../../components/StatusBadge/StatusBadge';
 import { exportOrdersToCsv } from '../../utils/exportOrdersCsv';
 import { fulfillmentListLabel } from '../../utils/fulfillmentTimeline';
 import { filterOrdersByMetric } from '../../utils/dashboardMetrics';
 import {
   canCreateShipment,
+  isCodOrder,
   isShipmentCreated,
 } from '../../utils/shipmentHelpers';
 import {
@@ -61,11 +64,22 @@ function orderKey(orderOrId) {
 
 function isPaymentBlocked(order) {
   const pay = String(order?.paymentStatus || '').toLowerCase();
-  const method = String(order?.paymentMethod || '').toLowerCase();
-  const isCod =
-    method.includes('cod') || method.includes('cash on delivery');
-  return !isCod && (pay === 'pending' || pay === 'failed');
+  if (isCodOrder(order)) return false;
+  return pay === 'pending' || pay === 'failed';
 }
+
+const emptyCodForm = {
+  customer_name: '',
+  phone: '',
+  email: '',
+  address: '',
+  city: '',
+  state: '',
+  pincode: '',
+  quantity: '1',
+  unit_price: '',
+  total_amount: '',
+};
 
 export default function Orders() {
   const [searchParams] = useSearchParams();
@@ -89,6 +103,11 @@ export default function Orders() {
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkProgress, setBulkProgress] = useState(null);
   const [bulkResult, setBulkResult] = useState(null);
+
+  const [codOpen, setCodOpen] = useState(false);
+  const [codForm, setCodForm] = useState(emptyCodForm);
+  const [codSaving, setCodSaving] = useState(false);
+  const [codError, setCodError] = useState('');
 
   const selectAllRef = useRef(null);
 
@@ -310,6 +329,65 @@ export default function Orders() {
   const clearSelection = () => {
     setSelectedIds(new Set());
     setBulkResult(null);
+  };
+
+  const openCodModal = () => {
+    setCodForm(emptyCodForm);
+    setCodError('');
+    setCodOpen(true);
+  };
+
+  const updateCodField = (name, value) => {
+    setCodForm((prev) => {
+      const next = { ...prev, [name]: value };
+      if (name === 'quantity' || name === 'unit_price') {
+        const qty = Number(name === 'quantity' ? value : next.quantity);
+        const unit = Number(name === 'unit_price' ? value : next.unit_price);
+        if (Number.isFinite(qty) && Number.isFinite(unit) && qty > 0 && unit > 0) {
+          next.total_amount = String(Number((qty * unit).toFixed(2)));
+        }
+      }
+      return next;
+    });
+  };
+
+  const handleCreateCodOrder = async (e) => {
+    e.preventDefault();
+    if (codSaving) return;
+    setCodSaving(true);
+    setCodError('');
+    try {
+      const created = await createManualCodOrder({
+        customer_name: String(codForm.customer_name || '').trim(),
+        phone: String(codForm.phone || '').trim(),
+        email: String(codForm.email || '').trim(),
+        address: String(codForm.address || '').trim(),
+        city: String(codForm.city || '').trim(),
+        state: String(codForm.state || '').trim(),
+        pincode: String(codForm.pincode || '').trim(),
+        quantity: Number(codForm.quantity),
+        unit_price: Number(codForm.unit_price),
+        total_amount: Number(codForm.total_amount),
+      });
+      setCodOpen(false);
+      setCodForm(emptyCodForm);
+      const list = await loadOrders();
+      if (created?.id) {
+        const found = (list || []).find((o) => String(o.id) === String(created.id));
+        setMessage(
+          `COD order ${found?.orderNumber || created.orderNumber || created.id} created.`
+        );
+      } else {
+        setMessage('COD order created.');
+      }
+      setError('');
+    } catch (err) {
+      if (err.status !== 401) {
+        setCodError(err.message || 'Failed to create COD order');
+      }
+    } finally {
+      setCodSaving(false);
+    }
   };
 
   const handleDelete = async (order) => {
@@ -641,6 +719,11 @@ export default function Orders() {
       ),
     },
     {
+      key: 'paymentMode',
+      label: 'Payment Mode',
+      render: (row) => row.paymentMode || '—',
+    },
+    {
       key: 'promoCode',
       label: 'Promo',
       render: (row) =>
@@ -727,6 +810,9 @@ export default function Orders() {
             onClick={() => exportOrdersToCsv(orders, 'telaqua-orders-all.csv')}
           >
             Export All Orders
+          </Button>
+          <Button disabled={bulkBusy} onClick={openCodModal}>
+            + Add COD Order
           </Button>
         </div>
       </div>
@@ -976,6 +1062,142 @@ export default function Orders() {
           </div>
         </div>
       </section>
+
+      <Modal
+        open={codOpen}
+        title="Add COD Order"
+        size="lg"
+        onClose={() => !codSaving && setCodOpen(false)}
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              disabled={codSaving}
+              onClick={() => setCodOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="cod-order-form"
+              disabled={codSaving}
+            >
+              {codSaving ? 'Saving…' : 'Create COD Order'}
+            </Button>
+          </>
+        }
+      >
+        <form id="cod-order-form" className="form-grid" onSubmit={handleCreateCodOrder}>
+          {codError ? <div className="alert alert--error form-group--full">{codError}</div> : null}
+          <div className="form-group form-group--full">
+            <span>Product</span>
+            <strong>Tel-Aqua Product</strong>
+          </div>
+          <div className="form-group">
+            <label htmlFor="cod-name">Customer Name</label>
+            <input
+              id="cod-name"
+              value={codForm.customer_name}
+              onChange={(e) => updateCodField('customer_name', e.target.value)}
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="cod-phone">Phone</label>
+            <input
+              id="cod-phone"
+              inputMode="numeric"
+              maxLength={10}
+              value={codForm.phone}
+              onChange={(e) => updateCodField('phone', e.target.value)}
+              required
+            />
+          </div>
+          <div className="form-group form-group--full">
+            <label htmlFor="cod-email">Email (optional)</label>
+            <input
+              id="cod-email"
+              type="email"
+              value={codForm.email}
+              onChange={(e) => updateCodField('email', e.target.value)}
+            />
+          </div>
+          <div className="form-group form-group--full">
+            <label htmlFor="cod-address">Address</label>
+            <textarea
+              id="cod-address"
+              value={codForm.address}
+              onChange={(e) => updateCodField('address', e.target.value)}
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="cod-city">City</label>
+            <input
+              id="cod-city"
+              value={codForm.city}
+              onChange={(e) => updateCodField('city', e.target.value)}
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="cod-state">State</label>
+            <input
+              id="cod-state"
+              value={codForm.state}
+              onChange={(e) => updateCodField('state', e.target.value)}
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="cod-pincode">Pincode</label>
+            <input
+              id="cod-pincode"
+              inputMode="numeric"
+              maxLength={6}
+              value={codForm.pincode}
+              onChange={(e) => updateCodField('pincode', e.target.value)}
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="cod-quantity">Quantity</label>
+            <input
+              id="cod-quantity"
+              type="number"
+              min="1"
+              step="1"
+              value={codForm.quantity}
+              onChange={(e) => updateCodField('quantity', e.target.value)}
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="cod-unit-price">Unit Price</label>
+            <input
+              id="cod-unit-price"
+              type="number"
+              min="0.01"
+              step="0.01"
+              value={codForm.unit_price}
+              onChange={(e) => updateCodField('unit_price', e.target.value)}
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="cod-total">Total Amount</label>
+            <input
+              id="cod-total"
+              type="number"
+              min="0.01"
+              step="0.01"
+              value={codForm.total_amount}
+              onChange={(e) => updateCodField('total_amount', e.target.value)}
+              required
+            />
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
