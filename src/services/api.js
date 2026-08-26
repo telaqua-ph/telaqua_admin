@@ -371,6 +371,7 @@ export async function getDashboardStats({ from, to } = {}) {
     newOrders: Number(data?.newOrders || 0),
     paidOrders: Number(data?.paidOrders || 0),
     pendingPayments: Number(data?.pendingPayments || 0),
+    codOrders: Number(data?.codOrders || 0),
     shipmentsCreated: Number(data?.shipmentsCreated || 0),
     unseenOrders: Number(data?.unseenOrders || 0),
     devicesSold: Number(data?.devicesSold || 0),

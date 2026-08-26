@@ -48,6 +48,7 @@ function computeStats(orders) {
     new: filterOrdersByMetric(orders, 'new').length,
     paidOrders: filterOrdersByMetric(orders, 'paid').length,
     pendingPayments: filterOrdersByMetric(orders, 'pending_payment').length,
+    codOrders: filterOrdersByMetric(orders, 'cod').length,
     shipmentsCreated: filterOrdersByMetric(orders, 'shipments_created').length,
   };
 }
@@ -159,6 +160,12 @@ const CARD_DEFS = [
     valueKey: 'pendingPayments',
     icon: icons.pay,
     accent: 'amber',
+  },
+  {
+    key: 'cod',
+    valueKey: 'codOrders',
+    icon: icons.box,
+    accent: 'orange',
   },
   {
     key: 'shipments_created',

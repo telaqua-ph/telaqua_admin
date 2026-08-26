@@ -3,6 +3,7 @@
  */
 
 import { fulfillmentListLabel } from './fulfillmentTimeline';
+import { isCodOrder } from './shipmentHelpers';
 
 export const DASHBOARD_METRICS = {
   total: {
@@ -31,6 +32,12 @@ export const DASHBOARD_METRICS = {
     to: '/orders?payment=Pending',
     filename: 'telaqua-pending-payments.csv',
     match: (o) => String(o.paymentStatus || '').toLowerCase() === 'pending',
+  },
+  cod: {
+    title: 'COD Orders',
+    to: '/orders?paymentMode=COD',
+    filename: 'telaqua-cod-orders.csv',
+    match: (o) => isCodOrder(o),
   },
   shipments_created: {
     title: 'Shipments Created',

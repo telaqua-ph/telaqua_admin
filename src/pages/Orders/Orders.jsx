@@ -118,6 +118,7 @@ export default function Orders() {
   // Deep-link from dashboard cards: ?payment=Paid&metric=new&status=New
   useEffect(() => {
     const payment = searchParams.get('payment');
+    const paymentMode = String(searchParams.get('paymentMode') || '').trim();
     const status = searchParams.get('status');
     const shipment = searchParams.get('shipment');
     const metric = searchParams.get('metric') || '';
@@ -125,6 +126,12 @@ export default function Orders() {
 
     if (payment && paymentStatuses.includes(payment)) {
       setPaymentFilter(payment);
+    }
+
+    if (paymentMode === 'COD' || paymentMode === 'Razorpay') {
+      setPaymentModeFilter(paymentMode);
+    } else {
+      setPaymentModeFilter('All');
     }
 
     if (status && (statuses.includes(status) || status === 'Pending')) {
