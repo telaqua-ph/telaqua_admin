@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   deleteOrder,
+  downloadOrderInvoice,
   getOrderById,
   getOrderStatuses,
   getPaymentStatuses,
@@ -168,6 +169,9 @@ export default function OrderDetails() {
   const canCollectCod =
     isCodOrder(order) &&
     String(order?.paymentStatus || '').toLowerCase() === 'pending';
+  const canDownloadInvoice =
+    isCodOrder(order) ||
+    String(order?.paymentStatus || '').toLowerCase() === 'paid';
   const showNdr = looksLikeNdr(order);
   const labelReady = Boolean(
     order?.labelData &&
@@ -235,6 +239,21 @@ export default function OrderDetails() {
       () => markCodPaymentPaid(id),
       'COD payment marked as Paid.'
     );
+  };
+
+  const handleDownloadInvoice = async () => {
+    if (!canDownloadInvoice || actionLoading === 'invoice') return;
+    setActionLoading('invoice');
+    setError('');
+    try {
+      await downloadOrderInvoice(id);
+    } catch (err) {
+      if (err.status !== 401) {
+        setError(err.message || 'Invoice is being generated...');
+      }
+    } finally {
+      setActionLoading('');
+    }
   };
 
   const handleDelete = async () => {
@@ -596,6 +615,16 @@ export default function OrderDetails() {
           </p>
         </div>
         <div className="order-details__header-actions">
+          {canDownloadInvoice ? (
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={busy || actionLoading === 'invoice'}
+              onClick={handleDownloadInvoice}
+            >
+              {actionLoading === 'invoice' ? 'Preparing…' : 'Download Invoice'}
+            </Button>
+          ) : null}
           <Link to="/orders">
             <Button variant="secondary">Back</Button>
           </Link>

@@ -12,6 +12,7 @@ import {
   isAuthenticated,
   setAuthSession,
   setStoredAdmin,
+  API_BASE_URL,
 } from './http';
 import {
   ORDER_STATUSES,
@@ -317,6 +318,51 @@ export async function markCodPaymentPaid(id) {
 
 export async function deleteOrder(id) {
   await apiRequest(`/api/orders/${id}`, { method: 'DELETE' });
+  return { success: true };
+}
+
+export async function downloadOrderInvoice(id) {
+  const token = getToken();
+  if (!token) {
+    const error = new Error('Session expired. Please sign in again.');
+    error.status = 401;
+    throw error;
+  }
+  const response = await fetch(
+    `${API_BASE_URL}/api/orders/${encodeURIComponent(id)}/invoice/download`,
+    {
+      method: 'GET',
+      headers: {
+        Accept: 'application/pdf, application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+  const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+  if (response.status === 401) {
+    clearAuthSession();
+  }
+  if (!response.ok || (!contentType.includes('pdf') && !contentType.includes('octet-stream'))) {
+    let message = 'Invoice is being generated...';
+    if (contentType.includes('json')) {
+      const data = await response.json().catch(() => null);
+      message = data?.message || message;
+    }
+    const error = new Error(message);
+    error.status = response.status;
+    throw error;
+  }
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = objectUrl;
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  link.download = `order-${id}-invoice.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
   return { success: true };
 }
 
