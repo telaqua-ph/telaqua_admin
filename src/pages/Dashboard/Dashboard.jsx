@@ -53,6 +53,18 @@ function computeStats(orders) {
   };
 }
 
+function operationalStatsFromApi(data) {
+  if (!data) return null;
+  return {
+    total: Number(data.totalOrders || 0),
+    new: Number(data.newOrders || 0),
+    paidOrders: Number(data.paidOrders || 0),
+    pendingPayments: Number(data.pendingPayments || 0),
+    codOrders: Number(data.codOrders || 0),
+    shipmentsCreated: Number(data.shipmentsCreated || 0),
+  };
+}
+
 function formatInr(value) {
   const amount = Number(value);
   if (!Number.isFinite(amount)) return '₹0';
@@ -239,6 +251,8 @@ export default function Dashboard() {
     setSales(dashboardStats);
     setAnalysis(dashboardStats.analysis);
     setUnseenOrders(dashboardStats.unseenOrders || 0);
+    const operational = operationalStatsFromApi(dashboardStats);
+    if (operational) setStats(operational);
     if (rangeLabel) setSelectedRangeLabel(rangeLabel);
   }, []);
 
@@ -291,7 +305,9 @@ export default function Dashboard() {
           const ordersData = ordersResult.value;
           setOrders(ordersData);
           setRecent(ordersData.slice(0, 8));
-          setStats(computeStats(ordersData));
+          if (statsResult.status !== 'fulfilled') {
+            setStats(computeStats(ordersData));
+          }
         } else if (ordersResult.reason?.status !== 401) {
           setError(ordersResult.reason?.message || 'Failed to load orders');
         }
