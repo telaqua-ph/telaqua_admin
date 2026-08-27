@@ -45,6 +45,15 @@ export const DASHBOARD_METRICS = {
     filename: 'telaqua-shipments-created.csv',
     match: (o) => fulfillmentListLabel(o) === 'Created',
   },
+  cancelled: {
+    title: 'Cancelled Orders',
+    to: '/orders?status=Cancelled',
+    filename: 'telaqua-cancelled-orders.csv',
+    match: (o) => {
+      const s = String(o.status || o.orderStatus || o.order_status || '').toLowerCase();
+      return s === 'cancelled';
+    },
+  },
 };
 
 export function filterOrdersByMetric(orders, metricKey) {

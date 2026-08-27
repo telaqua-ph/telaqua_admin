@@ -40,6 +40,12 @@ const icons = {
       <circle cx="18.5" cy="18.5" r="2.5" />
     </svg>
   ),
+  cancel: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M8 8l8 8M16 8l-8 8" />
+    </svg>
+  ),
 };
 
 function computeStats(orders) {
@@ -50,6 +56,7 @@ function computeStats(orders) {
     pendingPayments: filterOrdersByMetric(orders, 'pending_payment').length,
     codOrders: filterOrdersByMetric(orders, 'cod').length,
     shipmentsCreated: filterOrdersByMetric(orders, 'shipments_created').length,
+    cancelledOrders: filterOrdersByMetric(orders, 'cancelled').length,
   };
 }
 
@@ -62,6 +69,7 @@ function operationalStatsFromApi(data) {
     pendingPayments: Number(data.pendingPayments || 0),
     codOrders: Number(data.codOrders || 0),
     shipmentsCreated: Number(data.shipmentsCreated || 0),
+    cancelledOrders: Number(data.cancelledOrders || 0),
   };
 }
 
@@ -184,6 +192,12 @@ const CARD_DEFS = [
     valueKey: 'shipmentsCreated',
     icon: icons.truck,
     accent: 'blue',
+  },
+  {
+    key: 'cancelled',
+    valueKey: 'cancelledOrders',
+    icon: icons.cancel,
+    accent: 'red',
   },
 ];
 
