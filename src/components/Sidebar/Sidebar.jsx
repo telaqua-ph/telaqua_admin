@@ -112,8 +112,8 @@ export default function Sidebar({ open, onClose }) {
     return () => window.removeEventListener('orders:seen-changed', handleSeenChanged);
   }, [loadStats]);
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate('/login');
   };
 

@@ -5,7 +5,7 @@ import { Button } from '../../components/Buttons';
 import './Login.css';
 
 export default function Login() {
-  const { login, isAuthenticated } = useAuth();
+  const { login, isAuthenticated, logoutNotice, clearLogoutNotice } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const from = location.state?.from?.pathname || '/';
@@ -22,6 +22,7 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    clearLogoutNotice?.();
     setSubmitting(true);
     try {
       const result = await login(email.trim(), password);
@@ -47,6 +48,7 @@ export default function Login() {
         </div>
 
         <form className="login-page__form" onSubmit={handleSubmit}>
+          {logoutNotice && <div className="alert alert--error">{logoutNotice}</div>}
           {error && <div className="alert alert--error">{error}</div>}
 
           <div className="form-group">

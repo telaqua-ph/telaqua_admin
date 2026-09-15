@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { changePassword, getProfile, updateProfile } from '../../services/api';
+import {
+  checkDevicePushStatus,
+  disableOrderPushOnDevice,
+  enableOrderPushOnDevice,
+  isWebPushSupported,
+  sendTestOrderPush,
+} from '../../services/webPush';
 import { Button } from '../../components/Buttons';
 import * as delhivery from '../../services/delhivery';
 import '../../styles/shared.css';
@@ -32,6 +39,30 @@ export default function Settings() {
   const [warehouseError, setWarehouseError] = useState('');
   const [warehouseMessage, setWarehouseMessage] = useState('');
   const [savingWarehouse, setSavingWarehouse] = useState(false);
+
+  const [pushSupported] = useState(() => isWebPushSupported());
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushPermission, setPushPermission] = useState('default');
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushMsg, setPushMsg] = useState('');
+  const [pushError, setPushError] = useState('');
+  const [pushLoading, setPushLoading] = useState(true);
+
+  const refreshPushStatus = async () => {
+    setPushLoading(true);
+    try {
+      const status = await checkDevicePushStatus();
+      setPushEnabled(Boolean(status.enabled));
+      setPushPermission(status.permission || (status.supported ? 'default' : 'unsupported'));
+      if (status.error) {
+        setPushError(status.error);
+      }
+    } catch (error) {
+      setPushError(error.message || 'Unable to check notification status');
+    } finally {
+      setPushLoading(false);
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -73,6 +104,10 @@ export default function Settings() {
       });
   }, []);
 
+  useEffect(() => {
+    refreshPushStatus();
+  }, []);
+
   const handleCreateWarehouse = async () => {
     setSavingWarehouse(true);
     setWarehouseError('');
@@ -88,6 +123,47 @@ export default function Settings() {
     } finally {
       setSavingWarehouse(false);
     }
+  };
+
+  const handleEnablePush = async () => {
+    setPushBusy(true);
+    setPushMsg('');
+    setPushError('');
+    const result = await enableOrderPushOnDevice();
+    if (result.success) {
+      setPushEnabled(true);
+      setPushPermission('granted');
+      setPushMsg(result.message);
+    } else {
+      setPushEnabled(false);
+      setPushError(result.message);
+      if (result.code === 'denied') setPushPermission('denied');
+    }
+    setPushBusy(false);
+  };
+
+  const handleTestPush = async () => {
+    setPushBusy(true);
+    setPushMsg('');
+    setPushError('');
+    const result = await sendTestOrderPush();
+    if (result.success) setPushMsg(result.message);
+    else setPushError(result.message);
+    setPushBusy(false);
+  };
+
+  const handleDisablePush = async () => {
+    setPushBusy(true);
+    setPushMsg('');
+    setPushError('');
+    const result = await disableOrderPushOnDevice();
+    setPushEnabled(false);
+    if (result.success) {
+      setPushMsg(result.message);
+    } else {
+      setPushError(result.message);
+    }
+    setPushBusy(false);
   };
 
   const handleProfileSubmit = async (e) => {
@@ -261,6 +337,65 @@ export default function Settings() {
               </Button>
             </div>
           </form>
+        </section>
+
+        <section className="panel settings__push">
+          <div className="panel__header">
+            <h3>Order notifications</h3>
+          </div>
+          <div className="panel__body order-details__stack">
+            {pushMsg && <div className="alert alert--success">{pushMsg}</div>}
+            {pushError && <div className="alert alert--error">{pushError}</div>}
+            <p className="form-hint">
+              Get a system notification on this device when a new order is saved,
+              even if the admin tab is closed. Inventory alerts are unchanged.
+            </p>
+            {!pushSupported ? (
+              <div className="alert alert--error">
+                This browser does not support Web Push. Use Chrome or Edge on Windows,
+                or Chrome on Android.
+              </div>
+            ) : pushLoading ? (
+              <p className="form-hint">Checking this device…</p>
+            ) : (
+              <>
+                <div>
+                  <span>This device</span>
+                  <strong>{pushEnabled ? 'Enabled' : 'Not enabled'}</strong>
+                </div>
+                {pushPermission === 'denied' && (
+                  <div className="alert alert--error">
+                    Notifications are blocked for this site. Allow them in browser
+                    settings, then click Enable again.
+                  </div>
+                )}
+                <div className="form-actions settings__push-actions">
+                  {!pushEnabled ? (
+                    <Button disabled={pushBusy} onClick={handleEnablePush}>
+                      {pushBusy ? 'Enabling…' : 'Enable order notifications'}
+                    </Button>
+                  ) : (
+                    <>
+                      <Button disabled={pushBusy} onClick={handleTestPush}>
+                        {pushBusy ? 'Sending…' : 'Send test notification'}
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        disabled={pushBusy}
+                        onClick={handleDisablePush}
+                      >
+                        Disable on this device
+                      </Button>
+                    </>
+                  )}
+                </div>
+                <p className="form-hint">
+                  Enabling on a phone and a PC registers both. Disabling here only
+                  affects this browser. Permission is requested only when you click Enable.
+                </p>
+              </>
+            )}
+          </div>
         </section>
 
         <section className="panel settings__warehouse">
