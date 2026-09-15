@@ -50,6 +50,7 @@ export default function Settings() {
 
   const refreshPushStatus = async () => {
     setPushLoading(true);
+    setPushError('');
     try {
       const status = await checkDevicePushStatus();
       setPushEnabled(Boolean(status.enabled));
@@ -58,6 +59,7 @@ export default function Settings() {
         setPushError(status.error);
       }
     } catch (error) {
+      setPushEnabled(false);
       setPushError(error.message || 'Unable to check notification status');
     } finally {
       setPushLoading(false);

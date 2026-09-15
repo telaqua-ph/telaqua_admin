@@ -28,9 +28,38 @@ export function isWebPushSupported() {
   );
 }
 
+/**
+ * Register SW — only call from Enable flow.
+ * Does not use serviceWorker.ready before register (that can hang forever).
+ */
 export async function getServiceWorkerRegistration() {
   if (!isWebPushSupported()) return null;
-  return navigator.serviceWorker.register(SW_PATH, { scope: '/' });
+  try {
+    return await navigator.serviceWorker.register(SW_PATH, { scope: '/' });
+  } catch (error) {
+    const err = new Error(
+      error?.message ||
+        'Service worker (/sw.js) could not be registered. Redeploy the admin site and hard-refresh.'
+    );
+    err.code = 'sw_missing';
+    err.cause = error;
+    throw err;
+  }
+}
+
+/**
+ * Existing registration only — never waits forever and never registers.
+ */
+export async function getExistingServiceWorkerRegistration() {
+  if (!isWebPushSupported()) return null;
+  try {
+    const byScope = await navigator.serviceWorker.getRegistration('/');
+    if (byScope) return byScope;
+    const all = await navigator.serviceWorker.getRegistrations();
+    return all[0] || null;
+  } catch {
+    return null;
+  }
 }
 
 export async function fetchVapidPublicKey() {
@@ -59,18 +88,19 @@ function subscriptionToJson(subscription) {
   };
 }
 
+/**
+ * Read existing push subscription without registering a service worker.
+ * Returns null quickly when none is registered (Settings must not hang).
+ */
 export async function getBrowserPushSubscription() {
   if (!isWebPushSupported()) return null;
-  const registration = await navigator.serviceWorker.ready.catch(() => null);
-  if (!registration) {
-    try {
-      await getServiceWorkerRegistration();
-    } catch {
-      return null;
-    }
+  try {
+    const registration = await getExistingServiceWorkerRegistration();
+    if (!registration) return null;
+    return registration.pushManager.getSubscription();
+  } catch {
+    return null;
   }
-  const ready = await navigator.serviceWorker.ready;
-  return ready.pushManager.getSubscription();
 }
 
 export async function checkDevicePushStatus() {
@@ -79,7 +109,19 @@ export async function checkDevicePushStatus() {
   }
 
   const permission = Notification.permission;
-  const subscription = await getBrowserPushSubscription();
+  let subscription = null;
+  try {
+    subscription = await getBrowserPushSubscription();
+  } catch {
+    return {
+      supported: true,
+      enabled: false,
+      permission,
+      subscription: null,
+      error: 'Unable to read this browser’s push subscription.',
+    };
+  }
+
   if (!subscription) {
     return { supported: true, enabled: false, permission, subscription: null };
   }
@@ -101,7 +143,7 @@ export async function checkDevicePushStatus() {
       enabled: false,
       permission,
       subscription,
-      error: error.message || 'Unable to check status',
+      error: error.message || 'Unable to check notification status with the server.',
     };
   }
 }
@@ -149,12 +191,15 @@ export async function enableOrderPushOnDevice() {
 
   try {
     const registration = await getServiceWorkerRegistration();
+    // After register(), ready resolves when this SW is active (does not hang forever).
     await navigator.serviceWorker.ready;
+    const activeRegistration =
+      (await getExistingServiceWorkerRegistration()) || registration;
 
     const publicKey = await fetchVapidPublicKey();
-    let subscription = await registration.pushManager.getSubscription();
+    let subscription = await activeRegistration.pushManager.getSubscription();
     if (!subscription) {
-      subscription = await registration.pushManager.subscribe({
+      subscription = await activeRegistration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(publicKey),
       });
@@ -181,10 +226,20 @@ export async function enableOrderPushOnDevice() {
       subscriptionId: data.subscriptionId,
     };
   } catch (error) {
+    const message = String(error?.message || 'Failed to enable notifications.');
+    const code =
+      error?.code === 'sw_missing' || /sw\.js|service worker|Failed to register/i.test(message)
+        ? 'sw_missing'
+        : /vapid|not configured|503/i.test(message)
+          ? 'backend'
+          : 'error';
     return {
       success: false,
-      code: 'error',
-      message: error.message || 'Failed to enable notifications.',
+      code,
+      message:
+        code === 'sw_missing'
+          ? 'Service worker (/sw.js) could not be loaded. Redeploy the admin site and hard-refresh.'
+          : message,
     };
   }
 }
