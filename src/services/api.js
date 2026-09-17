@@ -19,6 +19,7 @@ import {
   PAYMENT_STATUSES,
   PAYMENT_METHODS,
 } from '../data/dummyOrders';
+import { deriveOrderConfirmationStatus } from '../utils/orderConfirmationStatus';
 
 export { isAuthenticated };
 
@@ -200,7 +201,7 @@ export function normalizeOrder(order) {
     paymentMethod: order.payment_method || order.paymentMethod || '—',
     paymentMode: displayPaymentMode(order),
     paymentStatus: order.payment_status || order.paymentStatus || 'Pending',
-    displayStatus: order.display_status || order.displayStatus || '',
+    orderConfirmationStatus: deriveOrderConfirmationStatus(order),
     paymentId:
       order.payment_id ||
       order.razorpay_payment_id ||

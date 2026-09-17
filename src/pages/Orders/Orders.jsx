@@ -5,7 +5,6 @@ import {
   deleteOrder,
   getOrderById,
   getOrders,
-  getOrderStatuses,
   getPaymentStatuses,
 } from '../../services/api';
 import * as delhivery from '../../services/delhivery';
@@ -14,6 +13,7 @@ import { Button } from '../../components/Buttons';
 import { Modal } from '../../components/Modal';
 import StatusBadge from '../../components/StatusBadge/StatusBadge';
 import { exportOrdersToCsv } from '../../utils/exportOrdersCsv';
+import { deriveOrderConfirmationStatus } from '../../utils/orderConfirmationStatus';
 import { fulfillmentListLabel } from '../../utils/fulfillmentTimeline';
 import { filterOrdersByMetric } from '../../utils/dashboardMetrics';
 import {
@@ -30,13 +30,7 @@ import './Orders.css';
 
 const PAGE_SIZE = 10;
 
-const ORDER_STATUS_LABELS = {
-  READY_TO_SHIP: 'Ready to Ship',
-  READY_TO_PICKUP: 'Ready to Pickup',
-  IN_TRANSIT: 'In Transit',
-  OUT_FOR_DELIVERY: 'Out for Delivery',
-  DELIVERED: 'Delivered',
-};
+const ORDER_CONFIRMATION_FILTERS = ['New', 'Confirmed'];
 
 const SHIPMENT_FILTERS = [
   'All',
@@ -112,7 +106,6 @@ export default function Orders() {
 
   const selectAllRef = useRef(null);
 
-  const statuses = getOrderStatuses();
   const paymentStatuses = getPaymentStatuses();
 
   // Deep-link from dashboard cards: ?payment=Paid&metric=new&status=New
@@ -134,7 +127,7 @@ export default function Orders() {
       setPaymentModeFilter('All');
     }
 
-    if (status && (statuses.includes(status) || status === 'Pending')) {
+    if (status && ORDER_CONFIRMATION_FILTERS.includes(status)) {
       setStatusFilter(status);
     }
 
@@ -181,7 +174,7 @@ export default function Orders() {
         if (!filterOrdersByMetric([order], 'new').length) return false;
       } else {
         const matchesStatus =
-          statusFilter === 'All' || order.status === statusFilter;
+          statusFilter === 'All' || deriveOrderConfirmationStatus(order) === statusFilter;
         if (!matchesStatus) return false;
       }
 
@@ -707,11 +700,11 @@ export default function Orders() {
       render: (row) => `₹${row.total}`,
     },
     {
-      key: 'displayStatus',
+      key: 'orderConfirmationStatus',
       label: 'Order Status',
       render: (row) => (
         <StatusBadge
-          status={ORDER_STATUS_LABELS[row.displayStatus] || row.status || '—'}
+          status={deriveOrderConfirmationStatus(row)}
         />
       ),
     },
@@ -947,7 +940,7 @@ export default function Orders() {
               disabled={bulkBusy}
             >
               <option value="All">All order statuses</option>
-              {statuses.map((status) => (
+              {ORDER_CONFIRMATION_FILTERS.map((status) => (
                 <option key={status} value={status}>
                   {status}
                 </option>

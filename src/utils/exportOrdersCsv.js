@@ -1,3 +1,5 @@
+import { deriveOrderConfirmationStatus } from './orderConfirmationStatus';
+
 /**
  * Client-side CSV export for orders (no secrets / tokens).
  */
@@ -32,7 +34,11 @@ const CSV_COLUMNS = [
   { key: 'paymentId', label: 'Payment ID' },
   { key: 'promoCode', label: 'Promo Code' },
   { key: 'discountAmount', label: 'Discount Amount' },
-  { key: 'status', label: 'Order Status' },
+  {
+    key: 'orderConfirmationStatus',
+    label: 'Order Status',
+    map: deriveOrderConfirmationStatus,
+  },
   { key: 'orderedDate', label: 'Order Date' },
   { key: 'orderedTime', label: 'Order Time' },
   { key: 'date', label: 'Ordered At' },
