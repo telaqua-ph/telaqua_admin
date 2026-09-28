@@ -95,7 +95,7 @@ export const DASHBOARD_METRICS = {
   },
   shipments_created: {
     title: 'Shipments Created',
-    to: '/fulfillment?metric=shipments_created',
+    to: '/orders?metric=shipments_created',
     filename: 'telaqua-shipments-created.csv',
     match: (o) => fulfillmentListLabel(o) === 'Created',
   },

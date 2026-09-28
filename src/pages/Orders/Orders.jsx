@@ -40,6 +40,7 @@ const SALES_METRICS = new Set([
   'sales_devices',
   'sales_revenue_received',
   'sales_pending_revenue',
+  'shipments_created',
 ]);
 
 const SHIPMENT_FILTERS = [

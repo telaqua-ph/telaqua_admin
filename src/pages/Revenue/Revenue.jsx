@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getRevenueReport } from '../../services/api';
+import { getDashboardStats, getRevenueReport } from '../../services/api';
 import { DataTable } from '../../components/Tables';
 import StatusBadge from '../../components/StatusBadge/StatusBadge';
 import { todayInKolkata } from '../../utils/orderDateRange';
@@ -52,6 +52,15 @@ export default function Revenue() {
   const [report, setReport] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [allTime, setAllTime] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    getDashboardStats()
+      .then((stats) => { if (active) setAllTime(stats); })
+      .catch(() => { /* all-time card is optional; period report still loads */ });
+    return () => { active = false; };
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -113,6 +122,19 @@ export default function Revenue() {
         </div>
         <span className="revenue__timezone">Asia/Kolkata</span>
       </div>
+
+      <section className="revenue__all-time" aria-label="All-time revenue">
+        <div>
+          <span>All-time Revenue Received</span>
+          <strong>{allTime ? formatInr(allTime.revenueReceived) : '—'}</strong>
+          <small>Razorpay + explicitly paid COD, since launch</small>
+        </div>
+        <div>
+          <span>All-time Devices Sold</span>
+          <strong>{allTime ? Number(allTime.devicesSold).toLocaleString('en-IN') : '—'}</strong>
+          <small>Not affected by the date filter below</small>
+        </div>
+      </section>
 
       <section className="panel revenue__filters">
         <div className="panel__body">
