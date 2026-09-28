@@ -574,7 +574,7 @@ export default function Dashboard() {
           <div>
             <h3>Sales overview</h3>
             <p className="dashboard__section-note">
-              Device quantities include confirmed COD orders by order date and paid Razorpay orders;
+              Device quantities include confirmed COD orders by order date and confirmed, paid Razorpay orders;
               revenue includes confirmed payments only.
             </p>
           </div>

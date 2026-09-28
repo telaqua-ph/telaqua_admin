@@ -19,6 +19,12 @@ function isCancelled(order) {
     .toLowerCase() === 'cancelled';
 }
 
+// Keep sales lists aligned with the dashboard aggregate. A paid payment or a
+// shipment event never promotes a New order into Devices Sold.
+function isConfirmedOrder(order) {
+  return !isCancelled(order) && deriveOrderConfirmationStatus(order) === 'Confirmed';
+}
+
 export const DASHBOARD_METRICS = {
   total: {
     title: 'Total Orders',
@@ -73,8 +79,8 @@ export const DASHBOARD_METRICS = {
   sales_devices: {
     title: 'Devices Sold',
     match: (o) =>
-      (isCodOrder(o) && deriveOrderConfirmationStatus(o) === 'Confirmed') ||
-      (!isCodOrder(o) && isPaid(o) && !isCancelled(o)),
+      isConfirmedOrder(o) &&
+      (isCodOrder(o) || (!isCodOrder(o) && isPaid(o))),
   },
   sales_revenue_received: {
     title: 'Revenue Received',
