@@ -5,6 +5,7 @@ import {
   deleteOrder,
   getOrderById,
   getOrders,
+  markSelectedCodPaymentsPaid,
   getPaymentStatuses,
 } from '../../services/api';
 import * as delhivery from '../../services/delhivery';
@@ -107,6 +108,7 @@ export default function Orders() {
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkProgress, setBulkProgress] = useState(null);
   const [bulkResult, setBulkResult] = useState(null);
+  const [codPaymentResult, setCodPaymentResult] = useState(null);
 
   const [codOpen, setCodOpen] = useState(false);
   const [codForm, setCodForm] = useState(emptyCodForm);
@@ -285,35 +287,56 @@ export default function Orders() {
     unseenOnly,
     dateFrom,
     dateTo,
+    sortKey,
+    sortDir,
+    currentPage,
   ]);
 
-  const filteredIds = useMemo(
-    () => filtered.map((o) => orderKey(o)),
-    [filtered]
+  const currentPageIds = useMemo(
+    () => pageData.map((o) => orderKey(o)),
+    [pageData]
   );
 
-  const selectedOnFiltered = useMemo(
-    () => filteredIds.filter((id) => selectedIds.has(id)),
-    [filteredIds, selectedIds]
+  const selectedOnCurrentPage = useMemo(
+    () => currentPageIds.filter((id) => selectedIds.has(id)),
+    [currentPageIds, selectedIds]
   );
 
-  const allFilteredSelected =
-    filteredIds.length > 0 && selectedOnFiltered.length === filteredIds.length;
-  const someFilteredSelected =
-    selectedOnFiltered.length > 0 && !allFilteredSelected;
+  const allCurrentPageSelected =
+    currentPageIds.length > 0 && selectedOnCurrentPage.length === currentPageIds.length;
+  const someCurrentPageSelected =
+    selectedOnCurrentPage.length > 0 && !allCurrentPageSelected;
 
   useEffect(() => {
     if (selectAllRef.current) {
-      selectAllRef.current.indeterminate = someFilteredSelected;
+      selectAllRef.current.indeterminate = someCurrentPageSelected;
     }
-  }, [someFilteredSelected]);
+  }, [someCurrentPageSelected]);
 
   const selectedOrders = useMemo(() => {
-    const map = new Map(orders.map((o) => [orderKey(o), o]));
-    return Array.from(selectedIds)
-      .map((id) => map.get(id))
-      .filter(Boolean);
-  }, [orders, selectedIds]);
+    return pageData.filter((order) => selectedIds.has(orderKey(order)));
+  }, [pageData, selectedIds]);
+
+  const eligibleSelectedCodOrders = useMemo(
+    () =>
+      selectedOrders.filter(
+        (order) =>
+          isCodOrder(order) &&
+          String(order.paymentStatus || '').trim().toLowerCase() === 'pending' &&
+          String(order.status || order.order_status || '').trim().toLowerCase() !==
+            'cancelled'
+      ),
+    [selectedOrders]
+  );
+
+  const eligibleSelectedCodTotal = useMemo(
+    () =>
+      eligibleSelectedCodOrders.reduce(
+        (total, order) => total + (Number(order.total) || 0),
+        0
+      ),
+    [eligibleSelectedCodOrders]
+  );
 
   const toggleOne = (id) => {
     const key = orderKey(id);
@@ -326,19 +349,19 @@ export default function Orders() {
     setBulkResult(null);
   };
 
-  const toggleSelectAllFiltered = () => {
+  const toggleSelectAllCurrentPage = () => {
     setBulkResult(null);
-    if (allFilteredSelected) {
+    if (allCurrentPageSelected) {
       setSelectedIds((prev) => {
         const next = new Set(prev);
-        filteredIds.forEach((id) => next.delete(id));
+        currentPageIds.forEach((id) => next.delete(id));
         return next;
       });
       return;
     }
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      filteredIds.forEach((id) => next.add(id));
+      currentPageIds.forEach((id) => next.add(id));
       return next;
     });
   };
@@ -346,6 +369,7 @@ export default function Orders() {
   const clearSelection = () => {
     setSelectedIds(new Set());
     setBulkResult(null);
+    setCodPaymentResult(null);
   };
 
   const openCodModal = () => {
@@ -589,6 +613,56 @@ export default function Orders() {
     runBulkCreate(eligible);
   };
 
+  const handleBulkCodPaymentClick = async () => {
+    if (bulkBusy || eligibleSelectedCodOrders.length === 0) return;
+
+    const orderIds = eligibleSelectedCodOrders.map((order) => order.id);
+    const total = new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 2,
+    }).format(eligibleSelectedCodTotal);
+    const confirmed = window.confirm(
+      `Confirm payment has been collected for ${orderIds.length} selected COD order${
+        orderIds.length === 1 ? '' : 's'
+      } totaling ${total}? This marks only their payment status as Paid; order and shipment statuses will not change.`
+    );
+    if (!confirmed) return;
+
+    setBulkBusy(true);
+    setError('');
+    setMessage('');
+    setBulkResult(null);
+    setCodPaymentResult(null);
+
+    try {
+      const result = await markSelectedCodPaymentsPaid(orderIds);
+      const succeeded = Array.isArray(result?.succeeded) ? result.succeeded : [];
+      const failed = Array.isArray(result?.failed) ? result.failed : [];
+      const skipped = Array.isArray(result?.skipped) ? result.skipped : [];
+
+      setCodPaymentResult({ succeeded: succeeded.length, failed, skipped });
+      setSelectedIds(new Set());
+      await loadOrders();
+      window.dispatchEvent(new Event('orders:payment-changed'));
+
+      if (succeeded.length) {
+        setMessage(
+          `${succeeded.length} COD payment${succeeded.length === 1 ? '' : 's'} marked as Paid.`
+        );
+      }
+      if (!succeeded.length && (failed.length || skipped.length)) {
+        setError('No selected COD payments could be marked as Paid.');
+      }
+    } catch (err) {
+      if (err.status !== 401) {
+        setError(err.message || 'Failed to mark selected COD payments as Paid');
+      }
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
   const handleRetryFailed = async (failure) => {
     const order = orders.find((o) => orderKey(o) === orderKey(failure.id));
     if (!order) {
@@ -661,11 +735,11 @@ export default function Orders() {
           ref={selectAllRef}
           type="checkbox"
           className="orders__checkbox"
-          checked={allFilteredSelected}
-          onChange={toggleSelectAllFiltered}
-          disabled={filteredIds.length === 0 || bulkBusy}
-          aria-label="Select all filtered orders"
-          title="Select all filtered orders"
+          checked={allCurrentPageSelected}
+          onChange={toggleSelectAllCurrentPage}
+          disabled={currentPageIds.length === 0 || bulkBusy}
+          aria-label="Select all orders on this page"
+          title="Select all orders on this page"
         />
       ),
       render: (row) => (
@@ -803,7 +877,7 @@ export default function Orders() {
 
   const from = filtered.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
   const to = Math.min(currentPage * PAGE_SIZE, filtered.length);
-  const selectedCount = selectedIds.size;
+  const selectedCount = selectedOrders.length;
 
   return (
     <div className="page">
@@ -941,6 +1015,32 @@ export default function Orders() {
         </div>
       )}
 
+      {codPaymentResult && (
+        <div className="orders__bulk-result panel" role="status">
+          <div className="panel__body">
+            {codPaymentResult.succeeded > 0 && (
+              <p className="orders__bulk-result-success">
+                {codPaymentResult.succeeded} COD payment
+                {codPaymentResult.succeeded === 1 ? '' : 's'} marked as Paid.
+              </p>
+            )}
+            {codPaymentResult.failed.length > 0 && (
+              <p>{codPaymentResult.failed.length} order{codPaymentResult.failed.length === 1 ? '' : 's'} failed eligibility checks.</p>
+            )}
+            {codPaymentResult.skipped.length > 0 && (
+              <p>{codPaymentResult.skipped.length} order{codPaymentResult.skipped.length === 1 ? '' : 's'} skipped because the payment had already changed.</p>
+            )}
+            <button
+              type="button"
+              className="orders__bulk-dismiss"
+              onClick={() => setCodPaymentResult(null)}
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
       <section className="panel">
         <div className="panel__header orders__toolbar-wrap">
           <div className="toolbar orders__toolbar">
@@ -1061,6 +1161,14 @@ export default function Orders() {
               {selectedCount} order{selectedCount === 1 ? '' : 's'} selected
             </p>
             <div className="orders__bulk-actions">
+              {eligibleSelectedCodOrders.length > 0 && (
+                <Button
+                  disabled={bulkBusy}
+                  onClick={handleBulkCodPaymentClick}
+                >
+                  {bulkBusy ? 'Updating…' : 'Mark Selected COD as Paid'}
+                </Button>
+              )}
               <Button
                 disabled={bulkBusy}
                 onClick={handleBulkCreateClick}

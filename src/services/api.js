@@ -318,6 +318,13 @@ export async function markCodPaymentPaid(id) {
   return normalizeOrder(unwrapItem(data)) || (await getOrderById(id));
 }
 
+export async function markSelectedCodPaymentsPaid(orderIds) {
+  return apiRequest('/api/orders/cod-payment/bulk', {
+    method: 'PATCH',
+    body: { order_ids: orderIds },
+  });
+}
+
 export async function deleteOrder(id) {
   await apiRequest(`/api/orders/${id}`, { method: 'DELETE' });
   return { success: true };

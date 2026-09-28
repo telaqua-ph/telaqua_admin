@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getDashboardStats, getOrders } from '../../services/api';
 import { StatCard } from '../../components/Cards';
@@ -370,24 +370,40 @@ export default function Dashboard() {
   }, [applyStats]);
 
   useEffect(() => {
-    const handleSeenChanged = async () => {
+    const handleOrdersChanged = async () => {
       try {
-        await loadDashboard(
+        const range = appliedRange
+          ? {
+              from: appliedRange.from || undefined,
+              to: appliedRange.to || undefined,
+              label: appliedRange.label,
+            }
+          : undefined;
+        const [freshOrders, dashboardStats] = await Promise.all([
+          getOrders(),
+          loadDashboard(
+            range
+          ),
+        ]);
+        setOrders(freshOrders);
+        applyStats(
+          dashboardStats,
           appliedRange
-            ? {
-                from: appliedRange.from || undefined,
-                to: appliedRange.to || undefined,
-                label: appliedRange.label,
-              }
-            : undefined
+            ? appliedRange.label
+            : undefined,
+          freshOrders
         );
       } catch {
         /* ignore transient refresh errors */
       }
     };
-    window.addEventListener('orders:seen-changed', handleSeenChanged);
-    return () => window.removeEventListener('orders:seen-changed', handleSeenChanged);
-  }, [appliedRange, loadDashboard]);
+    window.addEventListener('orders:seen-changed', handleOrdersChanged);
+    window.addEventListener('orders:payment-changed', handleOrdersChanged);
+    return () => {
+      window.removeEventListener('orders:seen-changed', handleOrdersChanged);
+      window.removeEventListener('orders:payment-changed', handleOrdersChanged);
+    };
+  }, [appliedRange, applyStats, loadDashboard]);
 
   const handleDownloadMetric = (metricKey) => {
     const metric = DASHBOARD_METRICS[metricKey];
