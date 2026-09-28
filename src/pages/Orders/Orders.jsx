@@ -35,7 +35,7 @@ import './Orders.css';
 
 const PAGE_SIZE = 10;
 
-const ORDER_CONFIRMATION_FILTERS = ['New', 'Confirmed'];
+const ORDER_CONFIRMATION_FILTERS = ['New', 'Confirmed', 'Cancelled'];
 const SALES_METRICS = new Set([
   'sales_devices',
   'sales_revenue_received',
@@ -140,9 +140,9 @@ export default function Orders() {
       setPaymentModeFilter('All');
     }
 
-    if (status && ORDER_CONFIRMATION_FILTERS.includes(status)) {
-      setStatusFilter(status);
-    }
+    setStatusFilter(
+      status && ORDER_CONFIRMATION_FILTERS.includes(status) ? status : 'All'
+    );
 
     if (shipment && SHIPMENT_FILTERS.includes(shipment)) {
       setShipmentFilter(shipment);
