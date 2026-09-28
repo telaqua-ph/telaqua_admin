@@ -163,6 +163,10 @@ function displayPaymentMode(order) {
   return 'Razorpay';
 }
 
+function isCancellationFlag(value) {
+  return value === true || value === 1 || String(value || '').trim().toLowerCase() === 'true';
+}
+
 /** Normalize API snake_case order into UI-friendly fields. */
 export function normalizeOrder(order) {
   if (!order) return null;
@@ -209,6 +213,12 @@ export function normalizeOrder(order) {
       order.razorpay_paymentId ||
       '',
     status: order.order_status || order.status || 'New',
+    // Set by the API from the order lifecycle plus cancellation audit/shipment
+    // records. This protects dashboard metrics from legacy stale statuses.
+    isCancelled:
+      isCancellationFlag(order.is_cancelled ?? order.isCancelled) ||
+      Boolean(order.cancelled_at || order.canceled_at) ||
+      ['cancelled', 'canceled'].includes(String(order.order_status || order.status || '').trim().toLowerCase()),
     date: formatDateTime(order.created_at || order.date),
     orderedDate: formatDatePart(order.created_at || order.date),
     orderedTime: formatTimePart(order.created_at || order.date),

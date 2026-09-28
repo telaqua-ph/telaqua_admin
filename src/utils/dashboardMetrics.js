@@ -15,6 +15,8 @@ function isPending(order) {
 }
 
 function isCancelled(order) {
+  if (order?.isCancelled === true || Number(order?.is_cancelled) === 1) return true;
+  if (order?.cancelled_at || order?.canceled_at) return true;
   return String(order?.status || order?.orderStatus || order?.order_status || '')
     .toLowerCase() === 'cancelled';
 }

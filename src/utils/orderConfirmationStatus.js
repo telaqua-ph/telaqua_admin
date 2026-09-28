@@ -10,6 +10,13 @@ const CANCELLED_ORDER_STATUSES = new Set(['cancelled', 'canceled']);
 
 // Mirrors the API derivation for cached/older responses during deployment.
 export function deriveOrderConfirmationStatus(order) {
+  if (
+    order?.isCancelled === true ||
+    Number(order?.is_cancelled) === 1 ||
+    order?.cancelled_at ||
+    order?.canceled_at
+  ) return 'Cancelled';
+
   const supplied = String(order?.confirmation_status || order?.orderConfirmationStatus || '').trim();
   if (supplied === 'New' || supplied === 'Confirmed' || supplied === 'Cancelled') return supplied;
 
