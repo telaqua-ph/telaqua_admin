@@ -184,12 +184,6 @@ const CARD_DEFS = [
     accent: 'green',
   },
   {
-    key: 'pending_payment',
-    valueKey: 'pendingPayments',
-    icon: icons.pay,
-    accent: 'amber',
-  },
-  {
     key: 'cod',
     valueKey: 'codOrders',
     icon: icons.box,
