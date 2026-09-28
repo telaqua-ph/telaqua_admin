@@ -33,6 +33,12 @@
   border-color: #fdba74;
 }
 
+.stat-card__link:focus-visible .stat-card {
+  outline: 3px solid color-mix(in srgb, var(--color-primary) 55%, transparent);
+  outline-offset: 3px;
+  border-color: var(--color-primary);
+}
+
 .stat-card__title {
   font-size: 0.8125rem;
   font-weight: 500;

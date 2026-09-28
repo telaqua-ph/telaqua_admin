@@ -201,6 +201,7 @@ export function normalizeOrder(order) {
     paymentMethod: order.payment_method || order.paymentMethod || '—',
     paymentMode: displayPaymentMode(order),
     paymentStatus: order.payment_status || order.paymentStatus || 'Pending',
+    paymentDate: order.payment_date || order.paymentDate || order.created_at || order.date || null,
     orderConfirmationStatus: deriveOrderConfirmationStatus(order),
     paymentId:
       order.payment_id ||
@@ -433,7 +434,7 @@ export async function getDashboardStats({ from, to } = {}) {
       to: data?.analysis?.to || null,
       devicesSold: Number(data?.analysis?.devicesSold || 0),
       revenueReceived: Number(data?.analysis?.revenueReceived || 0),
-      averageRevenuePerDevice: Number(data?.analysis?.averageRevenuePerDevice || 0),
+      pendingRevenue: Number(data?.analysis?.pendingRevenue || 0),
     },
   };
 }

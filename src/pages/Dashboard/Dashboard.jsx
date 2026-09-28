@@ -11,6 +11,7 @@ import {
   filterOrdersByMetric,
 } from '../../utils/dashboardMetrics';
 import { exportOrdersToCsv } from '../../utils/exportOrdersCsv';
+import { isOrderCreatedInDateRange, todayInKolkata } from '../../utils/orderDateRange';
 import '../../styles/shared.css';
 import './Dashboard.css';
 
@@ -102,39 +103,40 @@ function formatDateLabel(value) {
 }
 
 function getTodayRange() {
-  const today = toDateInput(new Date());
+  const today = todayInKolkata();
   return { from: today, to: today, label: 'Today' };
 }
 
 function getYesterdayRange() {
-  const date = new Date();
-  date.setDate(date.getDate() - 1);
-  const value = toDateInput(date);
+  const date = new Date(`${todayInKolkata()}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() - 1);
+  const value = date.toISOString().slice(0, 10);
   return { from: value, to: value, label: 'Yesterday' };
 }
 
 function getThisWeekRange() {
-  const end = new Date();
-  const start = new Date();
-  const day = start.getDay();
+  const end = todayInKolkata();
+  const start = new Date(`${end}T00:00:00Z`);
+  const day = start.getUTCDay();
   const offset = day === 0 ? 6 : day - 1;
-  start.setDate(start.getDate() - offset);
+  start.setUTCDate(start.getUTCDate() - offset);
   return {
-    from: toDateInput(start),
-    to: toDateInput(end),
+    from: start.toISOString().slice(0, 10),
+    to: end,
     label: 'This Week',
   };
 }
 
 function getThisMonthRange() {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), 1);
-  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const today = todayInKolkata();
+  const [year, month] = today.split('-').map(Number);
+  const start = `${year}-${String(month).padStart(2, '0')}-01`;
+  const end = new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
   return {
-    from: toDateInput(start),
-    to: toDateInput(end),
-    label: now.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }),
-    monthValue: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`,
+    from: start,
+    to: end,
+    label: new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }),
+    monthValue: `${year}-${String(month).padStart(2, '0')}`,
   };
 }
 
@@ -218,13 +220,14 @@ const SALES_GROUPS = [
     key: 'all',
     label: 'All time',
     cards: [
-      { key: 'devicesSold', title: 'Devices Sold', accent: 'blue', icon: icons.box },
+      { key: 'devicesSold', title: 'Devices Sold', accent: 'blue', icon: icons.box, metric: 'sales_devices' },
       {
         key: 'revenueReceived',
         title: 'Revenue Received',
         accent: 'green',
         icon: icons.pay,
         format: formatInr,
+        metric: 'sales_revenue_received',
       },
     ],
   },
@@ -232,13 +235,15 @@ const SALES_GROUPS = [
     key: 'today',
     label: 'Today',
     cards: [
-      { key: 'todayDevicesSold', title: 'Devices Sold', accent: 'orange', icon: icons.box },
+      { key: 'todayDevicesSold', title: 'Devices Sold', accent: 'orange', icon: icons.box, metric: 'sales_devices', range: 'today' },
       {
         key: 'todayRevenue',
-        title: 'Revenue',
+        title: 'Revenue Received',
         accent: 'green',
         icon: icons.pay,
         format: formatInr,
+        metric: 'sales_revenue_received',
+        range: 'today',
       },
     ],
   },
@@ -246,13 +251,15 @@ const SALES_GROUPS = [
     key: 'month',
     label: 'This month',
     cards: [
-      { key: 'monthDevicesSold', title: 'Devices Sold', accent: 'amber', icon: icons.box },
+      { key: 'monthDevicesSold', title: 'Devices Sold', accent: 'amber', icon: icons.box, metric: 'sales_devices', range: 'month' },
       {
         key: 'monthRevenue',
-        title: 'Revenue',
+        title: 'Revenue Received',
         accent: 'green',
         icon: icons.pay,
         format: formatInr,
+        metric: 'sales_revenue_received',
+        range: 'month',
       },
     ],
   },
@@ -264,14 +271,14 @@ export default function Dashboard() {
   const [sales, setSales] = useState(null);
   const [analysis, setAnalysis] = useState(null);
   const [unseenOrders, setUnseenOrders] = useState(0);
-  const [recent, setRecent] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedRangeLabel, setSelectedRangeLabel] = useState('');
   const [monthValue, setMonthValue] = useState('');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
-  const [periodApplied, setPeriodApplied] = useState(false);
+  const [appliedRange, setAppliedRange] = useState(null);
+  const periodApplied = Boolean(appliedRange);
 
   const applyStats = useCallback((dashboardStats, rangeLabel, metricOrders) => {
     setSales(dashboardStats);
@@ -282,7 +289,7 @@ export default function Dashboard() {
     if (rangeLabel) setSelectedRangeLabel(rangeLabel);
   }, []);
 
-  const loadDashboard = useCallback(async (range, { showPeriod } = {}) => {
+  const loadDashboard = useCallback(async (range) => {
     const dashboardStats = await getDashboardStats({
       from: range?.from || undefined,
       to: range?.to || undefined,
@@ -291,7 +298,6 @@ export default function Dashboard() {
       ? range.label || describeRange(range.from, range.to, 'Selected Period')
       : '';
     applyStats(dashboardStats, rangeLabel, orders);
-    if (showPeriod) setPeriodApplied(true);
     return dashboardStats;
   }, [applyStats, orders]);
 
@@ -299,17 +305,22 @@ export default function Dashboard() {
     setMonthValue(range.monthValue || '');
     setCustomFrom(range.from || '');
     setCustomTo(range.to || '');
-    loadDashboard(range, { showPeriod: true }).catch((err) => {
+    setAppliedRange({
+      from: range.from || '',
+      to: range.to || '',
+      label: range.label || describeRange(range.from, range.to, 'Selected Period'),
+    });
+    loadDashboard(range).catch((err) => {
       if (err.status !== 401) setError(err.message || 'Failed to load dashboard stats');
     });
   }, [loadDashboard]);
 
   const clearPeriodFilter = useCallback(() => {
-    setPeriodApplied(false);
     setSelectedRangeLabel('');
     setMonthValue('');
     setCustomFrom('');
     setCustomTo('');
+    setAppliedRange(null);
     loadDashboard().catch((err) => {
       if (err.status !== 401) setError(err.message || 'Failed to load dashboard stats');
     });
@@ -332,7 +343,6 @@ export default function Dashboard() {
         if (ordersResult.status === 'fulfilled') {
           const ordersData = metricOrders;
           setOrders(ordersData);
-          setRecent(ordersData.slice(0, 8));
           if (statsResult.status !== 'fulfilled') {
             setStats(computeStats(ordersData));
           }
@@ -363,14 +373,13 @@ export default function Dashboard() {
     const handleSeenChanged = async () => {
       try {
         await loadDashboard(
-          periodApplied
+          appliedRange
             ? {
-                from: customFrom || undefined,
-                to: customTo || undefined,
-                label: selectedRangeLabel,
+                from: appliedRange.from || undefined,
+                to: appliedRange.to || undefined,
+                label: appliedRange.label,
               }
-            : undefined,
-          { showPeriod: periodApplied }
+            : undefined
         );
       } catch {
         /* ignore transient refresh errors */
@@ -378,7 +387,7 @@ export default function Dashboard() {
     };
     window.addEventListener('orders:seen-changed', handleSeenChanged);
     return () => window.removeEventListener('orders:seen-changed', handleSeenChanged);
-  }, [customFrom, customTo, loadDashboard, periodApplied, selectedRangeLabel]);
+  }, [appliedRange, loadDashboard]);
 
   const handleDownloadMetric = (metricKey) => {
     const metric = DASHBOARD_METRICS[metricKey];
@@ -441,6 +450,29 @@ export default function Dashboard() {
     return <div className="loading-state">Loading dashboard…</div>;
   }
 
+  const recentOrders = orders
+    .filter((order) =>
+      !appliedRange || isOrderCreatedInDateRange(order, appliedRange.from, appliedRange.to)
+    )
+    .slice(0, 8);
+  const recentOrdersPath = appliedRange
+    ? `/orders?${new URLSearchParams({
+        ...(appliedRange.from ? { from: appliedRange.from } : {}),
+        ...(appliedRange.to ? { to: appliedRange.to } : {}),
+      }).toString()}`
+    : '/orders';
+
+  const salesRanges = {
+    today: getTodayRange(),
+    month: getThisMonthRange(),
+  };
+  const salesMetricPath = (metric, range) => {
+    const params = new URLSearchParams({ metric });
+    if (range?.from) params.set('from', range.from);
+    if (range?.to) params.set('to', range.to);
+    return `/orders?${params.toString()}`;
+  };
+
   const analysisCards = [
     {
       key: 'analysisDevices',
@@ -448,6 +480,7 @@ export default function Dashboard() {
       value: analysis?.devicesSold ?? 0,
       icon: icons.box,
       accent: 'blue',
+      to: salesMetricPath('sales_devices', appliedRange),
     },
     {
       key: 'analysisRevenue',
@@ -455,13 +488,15 @@ export default function Dashboard() {
       value: formatInr(analysis?.revenueReceived ?? 0),
       icon: icons.pay,
       accent: 'green',
+      to: salesMetricPath('sales_revenue_received', appliedRange),
     },
     {
-      key: 'analysisAverage',
-      title: 'Average Revenue / Device',
-      value: formatInr(analysis?.averageRevenuePerDevice ?? 0),
+      key: 'analysisPendingRevenue',
+      title: 'Pending Revenue',
+      value: formatInr(analysis?.pendingRevenue ?? 0),
       icon: icons.pay,
       accent: 'amber',
+      to: salesMetricPath('sales_pending_revenue', appliedRange),
     },
   ];
 
@@ -541,6 +576,7 @@ export default function Dashboard() {
                       value={card.format ? card.format(sales?.[card.key] ?? 0) : sales?.[card.key] ?? 0}
                       icon={card.icon}
                       accent={card.accent}
+                      to={salesMetricPath(card.metric, salesRanges[card.range])}
                     />
                   ))}
                 </div>
@@ -573,7 +609,11 @@ export default function Dashboard() {
                   onChange={(e) => {
                     const value = e.target.value;
                     setMonthValue(value);
-                    if (value) applyPeriodRange(getMonthRange(value));
+                    if (value) {
+                      const range = getMonthRange(value);
+                      setCustomFrom(range.from);
+                      setCustomTo(range.to);
+                    }
                   }}
                 />
               </label>
@@ -632,6 +672,7 @@ export default function Dashboard() {
                     value={card.value}
                     icon={card.icon}
                     accent={card.accent}
+                    to={card.to}
                   />
                 ))}
               </div>
@@ -642,8 +683,15 @@ export default function Dashboard() {
 
       <section className="panel">
         <div className="panel__header">
-          <h3>Recent orders</h3>
-          <Link to="/orders">
+          <div>
+            <h3>Recent orders</h3>
+            {appliedRange && (
+              <p className="dashboard__section-note">
+                Showing orders placed {appliedRange.label}
+              </p>
+            )}
+          </div>
+          <Link to={recentOrdersPath}>
             <Button size="sm" variant="ghost">
               View all
             </Button>
@@ -651,7 +699,7 @@ export default function Dashboard() {
         </div>
         <DataTable
           columns={columns}
-          data={recent}
+          data={recentOrders}
           emptyMessage={error ? 'Unable to load orders.' : 'No recent orders.'}
         />
       </section>

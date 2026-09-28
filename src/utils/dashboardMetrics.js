@@ -6,6 +6,19 @@ import { fulfillmentListLabel } from './fulfillmentTimeline';
 import { deriveOrderConfirmationStatus } from './orderConfirmationStatus';
 import { isCodOrder } from './shipmentHelpers';
 
+function isPaid(order) {
+  return String(order?.paymentStatus || order?.payment_status || '').toLowerCase() === 'paid';
+}
+
+function isPending(order) {
+  return String(order?.paymentStatus || order?.payment_status || '').toLowerCase() === 'pending';
+}
+
+function isCancelled(order) {
+  return String(order?.status || order?.orderStatus || order?.order_status || '')
+    .toLowerCase() === 'cancelled';
+}
+
 export const DASHBOARD_METRICS = {
   total: {
     title: 'Total Orders',
@@ -27,13 +40,13 @@ export const DASHBOARD_METRICS = {
     to: '/orders?payment=Paid&paymentMode=Razorpay',
     filename: 'telaqua-razorpay-paid-orders.csv',
     match: (o) =>
-      !isCodOrder(o) && String(o.paymentStatus || o.payment_status || '').toLowerCase() === 'paid',
+      !isCodOrder(o) && isPaid(o),
   },
   pending_payment: {
     title: 'Pending Payments',
     to: '/orders?payment=Pending',
     filename: 'telaqua-pending-payments.csv',
-    match: (o) => String(o.paymentStatus || '').toLowerCase() === 'pending',
+    match: (o) => isPending(o),
   },
   cod: {
     title: 'Total COD Orders',
@@ -46,7 +59,7 @@ export const DASHBOARD_METRICS = {
     to: '/orders?payment=Paid&paymentMode=COD',
     filename: 'telaqua-cod-paid-orders.csv',
     match: (o) =>
-      isCodOrder(o) && String(o.paymentStatus || o.payment_status || '').toLowerCase() === 'paid',
+      isCodOrder(o) && isPaid(o),
   },
   confirmed_cod_payment_pending: {
     title: 'Confirmed COD – Payment Pending',
@@ -55,7 +68,22 @@ export const DASHBOARD_METRICS = {
     match: (o) =>
       isCodOrder(o) &&
       deriveOrderConfirmationStatus(o) === 'Confirmed' &&
-      String(o.paymentStatus || o.payment_status || '').toLowerCase() === 'pending',
+      isPending(o),
+  },
+  sales_devices: {
+    title: 'Devices Sold',
+    match: (o) =>
+      (isCodOrder(o) && deriveOrderConfirmationStatus(o) === 'Confirmed') ||
+      (!isCodOrder(o) && isPaid(o) && !isCancelled(o)),
+  },
+  sales_revenue_received: {
+    title: 'Revenue Received',
+    match: (o) => isPaid(o) && !isCancelled(o),
+  },
+  sales_pending_revenue: {
+    title: 'Pending Revenue',
+    match: (o) =>
+      isCodOrder(o) && deriveOrderConfirmationStatus(o) === 'Confirmed' && isPending(o),
   },
   shipments_created: {
     title: 'Shipments Created',

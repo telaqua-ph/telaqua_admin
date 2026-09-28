@@ -15,7 +15,11 @@ import StatusBadge from '../../components/StatusBadge/StatusBadge';
 import { exportOrdersToCsv } from '../../utils/exportOrdersCsv';
 import { deriveOrderConfirmationStatus } from '../../utils/orderConfirmationStatus';
 import { fulfillmentListLabel } from '../../utils/fulfillmentTimeline';
-import { filterOrdersByMetric } from '../../utils/dashboardMetrics';
+import { DASHBOARD_METRICS, filterOrdersByMetric } from '../../utils/dashboardMetrics';
+import {
+  isOrderCreatedInDateRange,
+  isOrderPaymentInDateRange,
+} from '../../utils/orderDateRange';
 import {
   canCreateShipment,
   isCodOrder,
@@ -31,6 +35,11 @@ import './Orders.css';
 const PAGE_SIZE = 10;
 
 const ORDER_CONFIRMATION_FILTERS = ['New', 'Confirmed'];
+const SALES_METRICS = new Set([
+  'sales_devices',
+  'sales_revenue_received',
+  'sales_pending_revenue',
+]);
 
 const SHIPMENT_FILTERS = [
   'All',
@@ -115,6 +124,8 @@ export default function Orders() {
     const status = searchParams.get('status');
     const shipment = searchParams.get('shipment');
     const metric = searchParams.get('metric') || '';
+    const from = searchParams.get('from') || '';
+    const to = searchParams.get('to') || '';
     const unseen = String(searchParams.get('unseen') || '').toLowerCase() === 'true';
 
     if (payment && paymentStatuses.includes(payment)) {
@@ -135,8 +146,10 @@ export default function Orders() {
       setShipmentFilter(shipment);
     }
 
-    setMetricFilter(metric === 'new' ? 'new' : '');
+    setMetricFilter(metric === 'new' || SALES_METRICS.has(metric) ? metric : '');
     setUnseenOnly(unseen);
+    setDateFrom(/^\d{4}-\d{2}-\d{2}$/.test(from) ? from : '');
+    setDateTo(/^\d{4}-\d{2}-\d{2}$/.test(to) ? to : '');
     setPage(1);
   }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -170,8 +183,8 @@ export default function Orders() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     let list = orders.filter((order) => {
-      if (metricFilter === 'new') {
-        if (!filterOrdersByMetric([order], 'new').length) return false;
+      if (metricFilter) {
+        if (!filterOrdersByMetric([order], metricFilter).length) return false;
       } else {
         const matchesStatus =
           statusFilter === 'All' || deriveOrderConfirmationStatus(order) === statusFilter;
@@ -188,11 +201,9 @@ export default function Orders() {
         matchesShipment = fulfillmentListLabel(order) === shipmentFilter;
       }
 
-      const created = order.createdAt ? new Date(order.createdAt) : null;
-      const matchesFrom =
-        !dateFrom || (created && created >= new Date(`${dateFrom}T00:00:00`));
-      const matchesTo =
-        !dateTo || (created && created <= new Date(`${dateTo}T23:59:59`));
+      const matchesDateRange = metricFilter === 'sales_revenue_received'
+        ? isOrderPaymentInDateRange(order, dateFrom, dateTo)
+        : isOrderCreatedInDateRange(order, dateFrom, dateTo);
 
       const matchesSearch =
         !q ||
@@ -210,8 +221,7 @@ export default function Orders() {
         matchesPayment &&
         matchesPaymentMode &&
         matchesShipment &&
-        matchesFrom &&
-        matchesTo &&
+        matchesDateRange &&
         matchesSearch
       );
     });
@@ -827,17 +837,37 @@ export default function Orders() {
       {error && <div className="alert alert--error">{error}</div>}
       {message && <div className="alert alert--success">{message}</div>}
 
-      {(metricFilter === 'new' || paymentFilter !== 'All' || unseenOnly) && (
+      {(metricFilter || paymentFilter !== 'All' || unseenOnly || dateFrom || dateTo) && (
         <div className="alert alert--info">
           Showing:{' '}
           <strong>
-            {metricFilter === 'new'
-              ? 'New orders (New + Pending status)'
+            {metricFilter
+              ? metricFilter === 'new'
+                ? 'New orders (New + Pending status)'
+                : DASHBOARD_METRICS[metricFilter]?.title || 'Dashboard metric'
               : unseenOnly
                 ? 'Unseen orders only'
                 : `${paymentFilter} payments`}
           </strong>
-          {metricFilter === 'new' || unseenOnly ? (
+          {(dateFrom || dateTo) && (
+            <>
+              <span>{` · ${
+                metricFilter === 'sales_revenue_received' ? 'Payment date' : 'Ordered At'
+              }: ${dateFrom || 'start'} to ${dateTo || 'end'}`}</span>
+              <button
+                type="button"
+                className="orders__clear-selection"
+                style={{ marginLeft: 12 }}
+                onClick={() => {
+                  setDateFrom('');
+                  setDateTo('');
+                }}
+              >
+                Clear date range
+              </button>
+            </>
+          )}
+          {metricFilter === 'new' || unseenOnly || SALES_METRICS.has(metricFilter) ? (
             <button
               type="button"
               className="orders__clear-selection"
@@ -845,6 +875,10 @@ export default function Orders() {
               onClick={() => {
                 setMetricFilter('');
                 setUnseenOnly(false);
+                if (SALES_METRICS.has(metricFilter)) {
+                  setDateFrom('');
+                  setDateTo('');
+                }
               }}
             >
               Clear filter
