@@ -32,14 +32,6 @@ const icons = {
       <path d="M2 10h20" />
     </svg>
   ),
-  truck: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <rect x="1" y="3" width="15" height="13" rx="1" />
-      <path d="M16 8h4l3 3v5h-7V8z" />
-      <circle cx="5.5" cy="18.5" r="2.5" />
-      <circle cx="18.5" cy="18.5" r="2.5" />
-    </svg>
-  ),
   cancel: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <circle cx="12" cy="12" r="9" />
@@ -52,22 +44,32 @@ function computeStats(orders) {
   return {
     total: filterOrdersByMetric(orders, 'total').length,
     new: filterOrdersByMetric(orders, 'new').length,
-    paidOrders: filterOrdersByMetric(orders, 'paid').length,
+    razorpayPaidOrders: filterOrdersByMetric(orders || [], 'razorpay_paid').length,
     pendingPayments: filterOrdersByMetric(orders, 'pending_payment').length,
-    codOrders: filterOrdersByMetric(orders, 'cod').length,
+    codOrders: filterOrdersByMetric(orders || [], 'cod').length,
+    codPaidOrders: filterOrdersByMetric(orders || [], 'cod_paid').length,
+    confirmedCodPaymentPending: filterOrdersByMetric(
+      orders || [],
+      'confirmed_cod_payment_pending'
+    ).length,
     shipmentsCreated: filterOrdersByMetric(orders, 'shipments_created').length,
     cancelledOrders: filterOrdersByMetric(orders, 'cancelled').length,
   };
 }
 
-function operationalStatsFromApi(data) {
+function operationalStatsFromApi(data, orders) {
   if (!data) return null;
   return {
     total: Number(data.totalOrders || 0),
     new: Number(data.newOrders || 0),
-    paidOrders: Number(data.paidOrders || 0),
+    razorpayPaidOrders: filterOrdersByMetric(orders, 'razorpay_paid').length,
     pendingPayments: Number(data.pendingPayments || 0),
-    codOrders: Number(data.codOrders || 0),
+    codOrders: filterOrdersByMetric(orders, 'cod').length,
+    codPaidOrders: filterOrdersByMetric(orders, 'cod_paid').length,
+    confirmedCodPaymentPending: filterOrdersByMetric(
+      orders,
+      'confirmed_cod_payment_pending'
+    ).length,
     shipmentsCreated: Number(data.shipmentsCreated || 0),
     cancelledOrders: Number(data.cancelledOrders || 0),
   };
@@ -173,8 +175,12 @@ function describeRange(from, to, fallback = 'Selected Period') {
 
 const CARD_DEFS = [
   { key: 'total', valueKey: 'total', icon: icons.total, accent: 'orange' },
-  { key: 'new', valueKey: 'new', icon: icons.box, accent: 'blue' },
-  { key: 'paid', valueKey: 'paidOrders', icon: icons.pay, accent: 'green' },
+  {
+    key: 'razorpay_paid',
+    valueKey: 'razorpayPaidOrders',
+    icon: icons.pay,
+    accent: 'green',
+  },
   {
     key: 'pending_payment',
     valueKey: 'pendingPayments',
@@ -188,10 +194,16 @@ const CARD_DEFS = [
     accent: 'orange',
   },
   {
-    key: 'shipments_created',
-    valueKey: 'shipmentsCreated',
-    icon: icons.truck,
-    accent: 'blue',
+    key: 'cod_paid',
+    valueKey: 'codPaidOrders',
+    icon: icons.pay,
+    accent: 'green',
+  },
+  {
+    key: 'confirmed_cod_payment_pending',
+    valueKey: 'confirmedCodPaymentPending',
+    icon: icons.box,
+    accent: 'amber',
   },
   {
     key: 'cancelled',
@@ -261,11 +273,11 @@ export default function Dashboard() {
   const [customTo, setCustomTo] = useState('');
   const [periodApplied, setPeriodApplied] = useState(false);
 
-  const applyStats = useCallback((dashboardStats, rangeLabel) => {
+  const applyStats = useCallback((dashboardStats, rangeLabel, metricOrders) => {
     setSales(dashboardStats);
     setAnalysis(dashboardStats.analysis);
     setUnseenOrders(dashboardStats.unseenOrders || 0);
-    const operational = operationalStatsFromApi(dashboardStats);
+    const operational = operationalStatsFromApi(dashboardStats, metricOrders);
     if (operational) setStats(operational);
     if (rangeLabel) setSelectedRangeLabel(rangeLabel);
   }, []);
@@ -278,10 +290,10 @@ export default function Dashboard() {
     const rangeLabel = range
       ? range.label || describeRange(range.from, range.to, 'Selected Period')
       : '';
-    applyStats(dashboardStats, rangeLabel);
+    applyStats(dashboardStats, rangeLabel, orders);
     if (showPeriod) setPeriodApplied(true);
     return dashboardStats;
-  }, [applyStats]);
+  }, [applyStats, orders]);
 
   const applyPeriodRange = useCallback((range) => {
     setMonthValue(range.monthValue || '');
@@ -314,9 +326,11 @@ export default function Dashboard() {
           getDashboardStats(),
         ]);
         if (!active) return;
+        const metricOrders =
+          ordersResult.status === 'fulfilled' ? ordersResult.value : [];
 
         if (ordersResult.status === 'fulfilled') {
-          const ordersData = ordersResult.value;
+          const ordersData = metricOrders;
           setOrders(ordersData);
           setRecent(ordersData.slice(0, 8));
           if (statsResult.status !== 'fulfilled') {
@@ -327,7 +341,7 @@ export default function Dashboard() {
         }
 
         if (statsResult.status === 'fulfilled') {
-          applyStats(statsResult.value);
+          applyStats(statsResult.value, undefined, metricOrders);
         } else if (statsResult.reason?.status !== 401) {
           setError((prev) => prev || statsResult.reason?.message || 'Failed to load dashboard stats');
         }
@@ -487,7 +501,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="dashboard__stats">
+      <div className="dashboard__stats dashboard__stats--operations">
         {CARD_DEFS.map((card) => {
           const metric = DASHBOARD_METRICS[card.key];
           return (
@@ -509,7 +523,8 @@ export default function Dashboard() {
           <div>
             <h3>Sales overview</h3>
             <p className="dashboard__section-note">
-              Based on backend-confirmed paid orders and actual paid amounts.
+              Device quantities include confirmed COD orders by order date and paid Razorpay orders;
+              revenue includes confirmed payments only.
             </p>
           </div>
         </div>

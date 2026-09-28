@@ -3,6 +3,7 @@
  */
 
 import { fulfillmentListLabel } from './fulfillmentTimeline';
+import { deriveOrderConfirmationStatus } from './orderConfirmationStatus';
 import { isCodOrder } from './shipmentHelpers';
 
 export const DASHBOARD_METRICS = {
@@ -21,11 +22,12 @@ export const DASHBOARD_METRICS = {
       return s === 'new' || s === 'pending';
     },
   },
-  paid: {
-    title: 'Paid Orders',
-    to: '/orders?payment=Paid',
-    filename: 'telaqua-paid-orders.csv',
-    match: (o) => String(o.paymentStatus || '').toLowerCase() === 'paid',
+  razorpay_paid: {
+    title: 'Razorpay Paid Orders',
+    to: '/orders?payment=Paid&paymentMode=Razorpay',
+    filename: 'telaqua-razorpay-paid-orders.csv',
+    match: (o) =>
+      !isCodOrder(o) && String(o.paymentStatus || o.payment_status || '').toLowerCase() === 'paid',
   },
   pending_payment: {
     title: 'Pending Payments',
@@ -34,10 +36,26 @@ export const DASHBOARD_METRICS = {
     match: (o) => String(o.paymentStatus || '').toLowerCase() === 'pending',
   },
   cod: {
-    title: 'COD Orders',
+    title: 'Total COD Orders',
     to: '/orders?paymentMode=COD',
     filename: 'telaqua-cod-orders.csv',
     match: (o) => isCodOrder(o),
+  },
+  cod_paid: {
+    title: 'COD Paid Orders',
+    to: '/orders?payment=Paid&paymentMode=COD',
+    filename: 'telaqua-cod-paid-orders.csv',
+    match: (o) =>
+      isCodOrder(o) && String(o.paymentStatus || o.payment_status || '').toLowerCase() === 'paid',
+  },
+  confirmed_cod_payment_pending: {
+    title: 'Confirmed COD – Payment Pending',
+    to: '/orders?payment=Pending&paymentMode=COD&status=Confirmed',
+    filename: 'telaqua-confirmed-cod-payment-pending-orders.csv',
+    match: (o) =>
+      isCodOrder(o) &&
+      deriveOrderConfirmationStatus(o) === 'Confirmed' &&
+      String(o.paymentStatus || o.payment_status || '').toLowerCase() === 'pending',
   },
   shipments_created: {
     title: 'Shipments Created',

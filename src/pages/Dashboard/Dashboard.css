@@ -1,7 +1,19 @@
 .dashboard__stats {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 18px;
+}
+
+.dashboard__stats--operations {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+}
+
+.dashboard__stats--operations > * {
+  grid-column: span 3;
+}
+
+.dashboard__stats--operations > :nth-child(n + 5) {
+  grid-column: span 4;
 }
 
 .dashboard__stats--pair {
@@ -145,6 +157,15 @@
     grid-template-columns: repeat(2, 1fr);
   }
 
+  .dashboard__stats--operations {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .dashboard__stats--operations > *,
+  .dashboard__stats--operations > :nth-child(n + 5) {
+    grid-column: span 1;
+  }
+
   .dashboard__sales-groups {
     grid-template-columns: 1fr;
   }
@@ -156,6 +177,10 @@
 
 @media (max-width: 560px) {
   .dashboard__stats {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard__stats--operations {
     grid-template-columns: 1fr;
   }
 
