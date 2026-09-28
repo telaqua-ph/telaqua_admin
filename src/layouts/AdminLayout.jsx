@@ -10,6 +10,7 @@ const titles = {
   '/fulfillment': 'Fulfillment',
   '/inventory': 'Inventory',
   '/promo-codes': 'Discounts',
+  '/revenue': 'Revenue',
   '/products': 'Products',
   '/products/add': 'Add Product',
   '/settings': 'Settings',

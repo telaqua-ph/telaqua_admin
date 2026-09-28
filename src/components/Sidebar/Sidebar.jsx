@@ -19,6 +19,16 @@ const navItems = [
     ),
   },
   {
+    to: '/revenue',
+    label: 'Revenue',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M3 17l6-6 4 4 8-9" />
+        <path d="M15 6h6v6" />
+      </svg>
+    ),
+  },
+  {
     to: '/orders',
     label: 'Orders',
     icon: (

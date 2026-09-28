@@ -12,6 +12,7 @@ import Settings from '../pages/Settings';
 import Fulfillment from '../pages/Fulfillment';
 import Inventory from '../pages/Inventory';
 import PromoCodes from '../pages/PromoCodes';
+import Revenue from '../pages/Revenue';
 import NotFound from '../pages/NotFound';
 
 export default function AppRoutes() {
@@ -32,6 +33,7 @@ export default function AppRoutes() {
         <Route path="fulfillment" element={<Fulfillment />} />
         <Route path="inventory" element={<Inventory />} />
         <Route path="promo-codes" element={<PromoCodes />} />
+        <Route path="revenue" element={<Revenue />} />
         <Route path="products" element={<Products />} />
         <Route path="products/add" element={<AddProduct />} />
         <Route path="products/edit/:id" element={<EditProduct />} />

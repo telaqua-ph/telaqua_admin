@@ -446,6 +446,29 @@ export async function getDashboardStats({ from, to } = {}) {
   };
 }
 
+/** Revenue report uses the same backend financial snapshot as dashboard sales. */
+export async function getRevenueReport({ from, to }) {
+  const params = new URLSearchParams({ from, to });
+  const data = await apiRequest(`/api/revenue?${params.toString()}`);
+  return {
+    from: data?.from || from,
+    to: data?.to || to,
+    timezone: data?.timezone || 'Asia/Kolkata',
+    receivedRevenue: Number(data?.receivedRevenue || 0),
+    pendingCodRevenue: Number(data?.pendingCodRevenue || 0),
+    razorpayRevenue: Number(data?.razorpayRevenue || 0),
+    codRevenue: Number(data?.codRevenue || 0),
+    daily: Array.isArray(data?.daily) ? data.daily.map((item) => ({
+      date: item.date,
+      amount: Number(item.amount || 0),
+    })) : [],
+    orders: Array.isArray(data?.orders) ? data.orders.map((item) => ({
+      ...item,
+      amount: Number(item.amount || 0),
+    })) : [],
+  };
+}
+
 export function getOrderStatuses() {
   return [...ORDER_STATUSES];
 }
