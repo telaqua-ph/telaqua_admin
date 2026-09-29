@@ -4,6 +4,7 @@ import {
   deleteOrder,
   downloadOrderInvoice,
   getOrderById,
+  getOrderDeliveryHistory,
   getOrderStatuses,
   getPaymentStatuses,
   markCodPaymentPaid,
@@ -14,6 +15,8 @@ import * as delhivery from '../../services/delhivery';
 import { Button } from '../../components/Buttons';
 import StatusBadge from '../../components/StatusBadge/StatusBadge';
 import { Modal } from '../../components/Modal';
+import { DeliveryDetailsModal } from '../../components/DeliveryDetailsModal';
+import { deliveryEditStage } from '../../utils/deliveryDetails';
 import {
   canCreateShipment,
   extractLabelUrl,
@@ -46,9 +49,6 @@ const emptyPickup = {
 };
 
 const emptyEditForm = {
-  phone: '',
-  name: '',
-  add: '',
   cod: '',
   gm: '',
   shipment_length: '',
@@ -99,6 +99,10 @@ export default function OrderDetails() {
   const [pickupOpen, setPickupOpen] = useState(false);
   const [ndrOpen, setNdrOpen] = useState(false);
   const [ndrActions, setNdrActions] = useState([]);
+  const [deliveryOpen, setDeliveryOpen] = useState(false);
+  const [deliveryNotice, setDeliveryNotice] = useState(null);
+  const [deliveryHistory, setDeliveryHistory] = useState([]);
+  const [courierSyncPending, setCourierSyncPending] = useState(false);
 
   const [editForm, setEditForm] = useState(emptyEditForm);
   const [pickupForm, setPickupForm] = useState(emptyPickup);
@@ -126,6 +130,20 @@ export default function OrderDetails() {
     }
     return data;
   }, [id]);
+
+  const loadDeliveryHistory = useCallback(async () => {
+    try {
+      const result = await getOrderDeliveryHistory(id);
+      setDeliveryHistory(result.history);
+      setCourierSyncPending(result.courierSyncPending);
+    } catch {
+      /* history is informational; the edit endpoint enforces the rules */
+    }
+  }, [id]);
+
+  useEffect(() => {
+    loadDeliveryHistory();
+  }, [loadDeliveryHistory]);
 
   useEffect(() => {
     let active = true;
@@ -209,6 +227,24 @@ export default function OrderDetails() {
       return null;
     } finally {
       setActionLoading('');
+    }
+  };
+
+  const openDeliveryEdit = () => {
+    setDeliveryNotice(null);
+    setDeliveryOpen(true);
+  };
+
+  const handleDeliverySaved = async (result) => {
+    setDeliveryOpen(false);
+    setDeliveryNotice({
+      type: result.courierSync?.status === 'failed' ? 'error' : 'success',
+      text: result.message,
+    });
+    try {
+      await Promise.all([refreshOrder(), loadDeliveryHistory()]);
+    } catch {
+      /* the notice already reflects the saved result */
     }
   };
 
@@ -418,9 +454,6 @@ export default function OrderDetails() {
   const openEditShipment = () => {
     setEditForm({
       ...emptyEditForm,
-      phone: order.phone || '',
-      name: order.customerName || '',
-      add: order.address || '',
       cod: order.paymentMethod?.toLowerCase?.().includes('cod')
         ? String(order.total || '')
         : '',
@@ -433,9 +466,6 @@ export default function OrderDetails() {
     if (!order?.waybill || actionLoading === 'update') return;
     const body = { waybill: order.waybill };
     const optionalKeys = [
-      'phone',
-      'name',
-      'add',
       'cod',
       'gm',
       'shipment_length',
@@ -637,6 +667,14 @@ export default function OrderDetails() {
       {error && <div className="alert alert--error">{error}</div>}
       {message && !shipmentSuccess && (
         <div className="alert alert--success">{message}</div>
+      )}
+      {deliveryNotice && (
+        <div
+          className={`alert alert--${deliveryNotice.type}`}
+          role={deliveryNotice.type === 'error' ? 'alert' : 'status'}
+        >
+          {deliveryNotice.text}
+        </div>
       )}
 
       {shipmentSuccess && (
@@ -1081,7 +1119,18 @@ export default function OrderDetails() {
               </div>
               <div>
                 <span>Phone</span>
-                <strong>{order.phone || '—'}</strong>
+                <div className="order-details__inline-edit">
+                  <strong>{order.phone || '—'}</strong>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline-primary"
+                    disabled={busy}
+                    onClick={openDeliveryEdit}
+                  >
+                    Edit
+                  </Button>
+                </div>
               </div>
             </div>
           </section>
@@ -1089,9 +1138,44 @@ export default function OrderDetails() {
           <section className="panel">
             <div className="panel__header">
               <h3>Shipping address</h3>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline-primary"
+                disabled={busy}
+                onClick={openDeliveryEdit}
+              >
+                Edit delivery details
+              </Button>
             </div>
-            <div className="panel__body">
+            <div className="panel__body order-details__delivery">
+              {order.customerName ? (
+                <p className="order-details__address"><strong>{order.customerName}</strong></p>
+              ) : null}
               <p className="order-details__address">{order.fullAddress || '—'}</p>
+              {order.phone ? (
+                <p className="order-details__address">Mobile: {order.phone}</p>
+              ) : null}
+              {courierSyncPending && (
+                <div className="alert alert--error">
+                  {['in_transit', 'closed'].includes(deliveryEditStage(order))
+                    ? `Delhivery still has the old delivery details for AWB ${order.waybill || ''}. The shipment has moved past pickup — contact Delhivery support to correct it.`
+                    : `Delhivery still has the old delivery details for AWB ${order.waybill || ''}. Open Edit delivery details and save to retry, or contact Delhivery.`}
+                </div>
+              )}
+              {deliveryHistory[0] ? (
+                <p className="form-hint">
+                  Last edited by{' '}
+                  {deliveryHistory[0].admin_name ||
+                    deliveryHistory[0].admin_email ||
+                    `admin #${deliveryHistory[0].admin_id}`}
+                  {' on '}
+                  {new Date(deliveryHistory[0].created_at).toLocaleString('en-IN')}
+                  {deliveryHistory[0].changed_fields?.length
+                    ? ` (${deliveryHistory[0].changed_fields.join(', ').replace(/_/g, ' ')})`
+                    : ''}
+                </p>
+              ) : null}
             </div>
           </section>
 
@@ -1339,36 +1423,6 @@ export default function OrderDetails() {
         }
       >
         <div className="form-grid">
-          <div className="form-group form-group--full">
-            <label htmlFor="edit-name">Name</label>
-            <input
-              id="edit-name"
-              value={editForm.name}
-              onChange={(e) =>
-                setEditForm((f) => ({ ...f, name: e.target.value }))
-              }
-            />
-          </div>
-          <div className="form-group form-group--full">
-            <label htmlFor="edit-phone">Phone</label>
-            <input
-              id="edit-phone"
-              value={editForm.phone}
-              onChange={(e) =>
-                setEditForm((f) => ({ ...f, phone: e.target.value }))
-              }
-            />
-          </div>
-          <div className="form-group form-group--full">
-            <label htmlFor="edit-add">Address</label>
-            <textarea
-              id="edit-add"
-              value={editForm.add}
-              onChange={(e) =>
-                setEditForm((f) => ({ ...f, add: e.target.value }))
-              }
-            />
-          </div>
           <div className="form-group">
             <label htmlFor="edit-cod">COD amount</label>
             <input
@@ -1442,9 +1496,19 @@ export default function OrderDetails() {
           </div>
           <p className="form-hint form-group--full">
             Only filled fields are sent. Waybill is required and added automatically.
+            To change the recipient name, mobile number or address, use Edit delivery
+            details so the order and Delhivery stay in sync.
           </p>
         </div>
       </Modal>
+
+      <DeliveryDetailsModal
+        open={deliveryOpen}
+        order={order}
+        courierSyncPending={courierSyncPending}
+        onClose={() => setDeliveryOpen(false)}
+        onSaved={handleDeliverySaved}
+      />
 
       {/* Pickup */}
       <Modal

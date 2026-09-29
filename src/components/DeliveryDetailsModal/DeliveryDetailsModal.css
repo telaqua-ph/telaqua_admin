@@ -1,0 +1,22 @@
+.delivery-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.delivery-form__error {
+  margin-top: 4px;
+  font-size: 0.8125rem;
+  color: #b91c1c;
+}
+
+.form-group input.delivery-form__input--invalid,
+.form-group textarea.delivery-form__input--invalid {
+  border-color: #dc2626;
+}
+
+.form-group input:disabled,
+.form-group textarea:disabled {
+  background: #f3f4f6;
+  cursor: not-allowed;
+}

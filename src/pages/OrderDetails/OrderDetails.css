@@ -428,3 +428,16 @@
     grid-template-columns: 1fr;
   }
 }
+
+.order-details__inline-edit {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.order-details__delivery {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

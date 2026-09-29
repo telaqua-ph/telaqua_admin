@@ -312,6 +312,41 @@ export async function updateOrderStatus(id, status, paymentStatus) {
   return normalizeOrder(unwrapItem(data)) || (await getOrderById(id));
 }
 
+/**
+ * PATCH /api/orders/:id/delivery-details — corrects this order's shipping
+ * details only. Resolves with the courier outcome; rejects with
+ * err.data.errors (field → message) on validation failure and err.data.code
+ * (COURIER_LOCKED / COURIER_FIELD_UNSUPPORTED / …) when blocked.
+ */
+export async function updateOrderDeliveryDetails(id, details) {
+  const data = await apiRequest(`/api/orders/${id}/delivery-details`, {
+    method: 'PATCH',
+    body: {
+      customer_name: details.customer_name,
+      phone: details.phone,
+      address: details.address,
+      city: details.city,
+      state: details.state,
+      pincode: details.pincode,
+    },
+  });
+  window.dispatchEvent(new CustomEvent('orders:changed', { detail: { id } }));
+  return {
+    message: data?.message || 'Delivery details updated.',
+    courierSync: data?.courier_sync || { status: 'not_required' },
+    changes: Array.isArray(data?.changes) ? data.changes : [],
+    shipment: data?.shipment || null,
+  };
+}
+
+export async function getOrderDeliveryHistory(id) {
+  const data = await apiRequest(`/api/orders/${id}/delivery-details/history`);
+  return {
+    history: Array.isArray(data?.history) ? data.history : [],
+    courierSyncPending: Boolean(data?.courier_sync_pending),
+  };
+}
+
 export async function createManualCodOrder(payload) {
   const data = await apiRequest('/api/orders/manual-cod', {
     method: 'POST',

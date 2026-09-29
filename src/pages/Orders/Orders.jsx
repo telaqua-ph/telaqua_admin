@@ -167,6 +167,15 @@ export default function Orders() {
     return data;
   };
 
+  // Delivery details edited elsewhere: reload rows in place (filters and page are kept).
+  useEffect(() => {
+    const onOrdersChanged = () => {
+      getOrders().then(setOrders).catch(() => {});
+    };
+    window.addEventListener('orders:changed', onOrdersChanged);
+    return () => window.removeEventListener('orders:changed', onOrdersChanged);
+  }, []);
+
   useEffect(() => {
     let active = true;
     (async () => {
