@@ -320,6 +320,15 @@ export async function createManualCodOrder(payload) {
   return normalizeOrder(unwrapItem(data));
 }
 
+/** POST /api/promo/validate — checks a coupon without incrementing its usage. */
+export async function validatePromoCode(code) {
+  const data = await apiRequest('/api/promo/validate', {
+    method: 'POST',
+    body: { code },
+  });
+  return data?.promo || null;
+}
+
 export async function markCodPaymentPaid(id) {
   const data = await apiRequest(`/api/orders/${id}/cod-payment`, {
     method: 'PATCH',

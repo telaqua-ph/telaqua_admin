@@ -7,6 +7,7 @@ import {
   getOrders,
   markSelectedCodPaymentsPaid,
   getPaymentStatuses,
+  validatePromoCode,
 } from '../../services/api';
 import * as delhivery from '../../services/delhivery';
 import { DataTable } from '../../components/Tables';
@@ -84,6 +85,7 @@ const emptyCodForm = {
   quantity: '1',
   unit_price: '',
   total_amount: '',
+  promo_code: '',
 };
 
 export default function Orders() {
@@ -115,6 +117,9 @@ export default function Orders() {
   const [codForm, setCodForm] = useState(emptyCodForm);
   const [codSaving, setCodSaving] = useState(false);
   const [codError, setCodError] = useState('');
+  const [codPromo, setCodPromo] = useState(null);
+  const [codPromoError, setCodPromoError] = useState('');
+  const [codPromoChecking, setCodPromoChecking] = useState(false);
 
   const selectAllRef = useRef(null);
 
@@ -376,7 +381,49 @@ export default function Orders() {
   const openCodModal = () => {
     setCodForm(emptyCodForm);
     setCodError('');
+    setCodPromo(null);
+    setCodPromoError('');
     setCodOpen(true);
+  };
+
+  const updateCodPromoCode = (value) => {
+    setCodForm((prev) => ({ ...prev, promo_code: value }));
+    // Editing the code invalidates a previously applied coupon.
+    if (codPromo) setCodPromo(null);
+    setCodPromoError('');
+  };
+
+  const handleApplyCodPromo = async () => {
+    const code = String(codForm.promo_code || '').trim().toUpperCase();
+    if (!code || codPromoChecking) return;
+    setCodPromoChecking(true);
+    setCodPromoError('');
+    try {
+      const promo = await validatePromoCode(code);
+      if (!promo) throw new Error('Invalid or inactive promo code');
+      setCodPromo(promo);
+      setCodForm((prev) => {
+        const qty = Number(prev.quantity);
+        const next = { ...prev, promo_code: promo.code, unit_price: String(promo.promo_price) };
+        if (Number.isFinite(qty) && qty > 0) {
+          next.total_amount = String(Number((qty * promo.promo_price).toFixed(2)));
+        }
+        return next;
+      });
+    } catch (err) {
+      setCodPromo(null);
+      if (err.status !== 401) {
+        setCodPromoError(err.message || 'Invalid or inactive promo code');
+      }
+    } finally {
+      setCodPromoChecking(false);
+    }
+  };
+
+  const removeCodPromo = () => {
+    setCodPromo(null);
+    setCodPromoError('');
+    setCodForm((prev) => ({ ...prev, promo_code: '' }));
   };
 
   const updateCodField = (name, value) => {
@@ -410,6 +457,7 @@ export default function Orders() {
         quantity: Number(codForm.quantity),
         unit_price: Number(codForm.unit_price),
         total_amount: Number(codForm.total_amount),
+        promo_code: String(codForm.promo_code || '').trim().toUpperCase() || undefined,
       });
       setCodOpen(false);
       setCodForm(emptyCodForm);
@@ -1188,6 +1236,28 @@ export default function Orders() {
           </div>
         )}
 
+        <div className="orders__table-pagination" aria-label="Orders pagination">
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={currentPage <= 1 || bulkBusy}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+          >
+            Previous
+          </Button>
+          <span className="orders__page-indicator">
+            Page {currentPage} of {totalPages}
+          </span>
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={currentPage >= totalPages || bulkBusy}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+          >
+            Next
+          </Button>
+        </div>
+
         <DataTable
           columns={columns}
           data={pageData}
@@ -1333,6 +1403,52 @@ export default function Orders() {
               required
             />
           </div>
+          <div className="form-group form-group--full">
+            <label htmlFor="cod-promo">Coupon Code (optional)</label>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <input
+                id="cod-promo"
+                style={{ flex: 1, textTransform: 'uppercase' }}
+                value={codForm.promo_code}
+                onChange={(e) => updateCodPromoCode(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleApplyCodPromo();
+                  }
+                }}
+                placeholder="e.g. SN40"
+                disabled={codSaving}
+              />
+              {codPromo ? (
+                <Button variant="secondary" disabled={codSaving} onClick={removeCodPromo}>
+                  Remove
+                </Button>
+              ) : (
+                <Button
+                  variant="secondary"
+                  disabled={codSaving || codPromoChecking || !String(codForm.promo_code || '').trim()}
+                  onClick={handleApplyCodPromo}
+                >
+                  {codPromoChecking ? 'Checking…' : 'Apply'}
+                </Button>
+              )}
+            </div>
+            {codPromo ? (
+              <span className="form-hint">
+                {codPromo.code} applied: ₹{codPromo.promo_price} per unit (was ₹
+                {codPromo.original_price}, save ₹{codPromo.discount_amount} per unit).
+              </span>
+            ) : codPromoError ? (
+              <span className="form-hint" style={{ color: 'var(--color-danger, #c62828)' }}>
+                {codPromoError}
+              </span>
+            ) : (
+              <span className="form-hint">
+                With a coupon, the price is taken from the coupon, not the fields below.
+              </span>
+            )}
+          </div>
           <div className="form-group">
             <label htmlFor="cod-unit-price">Unit Price</label>
             <input
@@ -1342,6 +1458,7 @@ export default function Orders() {
               step="0.01"
               value={codForm.unit_price}
               onChange={(e) => updateCodField('unit_price', e.target.value)}
+              readOnly={Boolean(codPromo)}
               required
             />
           </div>
@@ -1354,6 +1471,7 @@ export default function Orders() {
               step="0.01"
               value={codForm.total_amount}
               onChange={(e) => updateCodField('total_amount', e.target.value)}
+              readOnly={Boolean(codPromo)}
               required
             />
           </div>
