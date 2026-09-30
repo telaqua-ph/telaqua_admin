@@ -231,6 +231,7 @@ const SALES_GROUPS = [
     label: 'Today',
     cards: [
       { key: 'todayDevicesSold', title: 'Devices Sold', accent: 'orange', icon: icons.box, metric: 'sales_devices', range: 'today' },
+      { key: 'todayCodPendingDevices', title: 'COD Payment Pending', accent: 'amber', icon: icons.box, metric: 'sales_cod_pending_devices', range: 'today' },
       {
         key: 'todayRevenue',
         title: 'Revenue Received',
