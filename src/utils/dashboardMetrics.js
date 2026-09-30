@@ -25,6 +25,15 @@ function isCancelled(order) {
     .toLowerCase() === 'cancelled';
 }
 
+// Shipments returning to origin (RTO in transit) or already returned are not
+// sales. Mirrors the API's Devices Sold filter.
+function isRtoOrder(order) {
+  const status = String(order?.fulfillment_status || order?.fulfillmentStatus || '')
+    .trim()
+    .toLowerCase();
+  return status === 'rto' || status === 'returned';
+}
+
 // Keep sales lists aligned with the dashboard aggregate. A paid payment or a
 // shipment event never promotes a New order into Devices Sold.
 function isConfirmedOrder(order) {
@@ -86,6 +95,7 @@ export const DASHBOARD_METRICS = {
     title: 'Devices Sold',
     match: (o) =>
       isConfirmedOrder(o) &&
+      !isRtoOrder(o) &&
       (isCodOrder(o) || (!isCodOrder(o) && isPaid(o))),
   },
   sales_revenue_received: {
