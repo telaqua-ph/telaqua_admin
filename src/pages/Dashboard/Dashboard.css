@@ -41,7 +41,7 @@
   /* Each group contains two full stat cards. Let the grid drop to two or one
      columns based on the actual content area (not only the viewport, which is
      reduced by the persistent sidebar). */
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 720px), 1fr));
   gap: 16px;
 }
 
