@@ -243,23 +243,6 @@ const SALES_GROUPS = [
       },
     ],
   },
-  {
-    key: 'month',
-    label: 'This month',
-    cards: [
-      { key: 'monthDevicesSold', title: 'Devices Sold', accent: 'amber', icon: icons.box, metric: 'sales_devices', range: 'month' },
-      { key: 'monthCodPendingDevices', title: 'COD Payment Pending', accent: 'orange', icon: icons.box, metric: 'sales_cod_pending_devices', range: 'month' },
-      {
-        key: 'monthRevenue',
-        title: 'Revenue Received',
-        accent: 'green',
-        icon: icons.pay,
-        format: formatInr,
-        metric: 'sales_revenue_received',
-        range: 'month',
-      },
-    ],
-  },
 ];
 
 export default function Dashboard() {
@@ -601,6 +584,7 @@ export default function Dashboard() {
 
           <div className="dashboard__sales-filters">
             <p className="dashboard__analysis-label">Filter a period</p>
+            <div className="dashboard__filter-line">
             <div className="dashboard__filter-group">
               {quickFilters.map((item) => (
                 <Button
@@ -669,6 +653,7 @@ export default function Dashboard() {
                   Clear
                 </Button>
               )}
+            </div>
             </div>
           </div>
 

@@ -115,25 +115,32 @@
   gap: 10px;
 }
 
+/* Quick buttons and custom range share one row; wraps only on narrow screens. */
+.dashboard__filter-line {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .dashboard__filter-row {
   display: flex;
   align-items: end;
   gap: 12px;
   flex-wrap: wrap;
-  margin-top: 14px;
 }
 
 .dashboard__field {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  min-width: 150px;
+  min-width: 140px;
   font-size: 0.8125rem;
   color: var(--color-text-secondary);
 }
 
 .dashboard__field input {
-  padding: 10px 12px;
+  padding: 7px 10px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: var(--color-bg);
