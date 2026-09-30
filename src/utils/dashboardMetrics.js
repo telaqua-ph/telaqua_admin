@@ -91,12 +91,15 @@ export const DASHBOARD_METRICS = {
       deriveOrderConfirmationStatus(o) === 'Confirmed' &&
       isPending(o),
   },
+  // Devices Sold = paid only (Razorpay paid + COD marked paid).
   sales_devices: {
     title: 'Devices Sold',
-    match: (o) =>
-      isConfirmedOrder(o) &&
-      !isRtoOrder(o) &&
-      (isCodOrder(o) || (!isCodOrder(o) && isPaid(o))),
+    match: (o) => isConfirmedOrder(o) && !isRtoOrder(o) && isPaid(o),
+  },
+  // Confirmed COD devices still waiting to be marked paid.
+  sales_cod_pending_devices: {
+    title: 'COD Payment Pending',
+    match: (o) => isConfirmedOrder(o) && !isRtoOrder(o) && isCodOrder(o) && !isPaid(o),
   },
   sales_revenue_received: {
     title: 'Revenue Received',
