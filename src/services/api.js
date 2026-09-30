@@ -485,10 +485,13 @@ export async function getDashboardStats({ from, to } = {}) {
     cancelledOrders: Number(data?.cancelledOrders || 0),
     unseenOrders: Number(data?.unseenOrders || 0),
     devicesSold: Number(data?.devicesSold || 0),
+    codPendingDevices: Number(data?.codPendingDevices || 0),
     revenueReceived: Number(data?.revenueReceived || 0),
     todayDevicesSold: Number(data?.todayDevicesSold || 0),
+    todayCodPendingDevices: Number(data?.todayCodPendingDevices || 0),
     todayRevenue: Number(data?.todayRevenue || 0),
     monthDevicesSold: Number(data?.monthDevicesSold || 0),
+    monthCodPendingDevices: Number(data?.monthCodPendingDevices || 0),
     monthRevenue: Number(data?.monthRevenue || 0),
     analysis: {
       from: data?.analysis?.from || null,
