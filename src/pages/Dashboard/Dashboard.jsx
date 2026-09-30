@@ -215,6 +215,7 @@ const SALES_GROUPS = [
     label: 'All time',
     cards: [
       { key: 'devicesSold', title: 'Devices Sold', accent: 'blue', icon: icons.box, metric: 'sales_devices' },
+      { key: 'codPendingDevices', title: 'COD Payment Pending', accent: 'amber', icon: icons.box, metric: 'sales_cod_pending_devices' },
       {
         key: 'revenueReceived',
         title: 'Revenue Received',
@@ -246,6 +247,7 @@ const SALES_GROUPS = [
     label: 'This month',
     cards: [
       { key: 'monthDevicesSold', title: 'Devices Sold', accent: 'amber', icon: icons.box, metric: 'sales_devices', range: 'month' },
+      { key: 'monthCodPendingDevices', title: 'COD Payment Pending', accent: 'orange', icon: icons.box, metric: 'sales_cod_pending_devices', range: 'month' },
       {
         key: 'monthRevenue',
         title: 'Revenue Received',
@@ -478,7 +480,7 @@ export default function Dashboard() {
   };
   const salesMetricPath = (metric, range) => {
     const params = new URLSearchParams({ metric });
-    if (metric === 'sales_devices') params.set('status', 'Confirmed');
+    if (metric === 'sales_devices' || metric === 'sales_cod_pending_devices') params.set('status', 'Confirmed');
     if (range?.from) params.set('from', range.from);
     if (range?.to) params.set('to', range.to);
     return `/orders?${params.toString()}`;
@@ -569,8 +571,9 @@ export default function Dashboard() {
           <div>
             <h3>Sales overview</h3>
             <p className="dashboard__section-note">
-              Device quantities include confirmed COD orders by order date and confirmed, paid Razorpay orders;
-              revenue includes confirmed payments only.
+              Devices Sold counts paid devices only (paid Razorpay orders and COD orders marked as paid).
+              COD Payment Pending counts confirmed COD devices not yet marked as paid. COD uses the order date,
+              Razorpay the payment date; RTO orders are excluded. Revenue includes confirmed payments only.
             </p>
           </div>
         </div>
@@ -579,7 +582,7 @@ export default function Dashboard() {
             {SALES_GROUPS.map((group) => (
               <div key={group.key} className="dashboard__sales-group">
                 <p className="dashboard__sales-group-label">{group.label}</p>
-                <div className="dashboard__stats dashboard__stats--pair">
+                <div className={`dashboard__stats dashboard__stats--pair${group.cards.length > 2 ? ' dashboard__stats--triple' : ''}`}>
                   {group.cards.map((card) => (
                     <StatCard
                       key={card.key}

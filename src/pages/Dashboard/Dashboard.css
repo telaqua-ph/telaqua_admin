@@ -21,6 +21,10 @@
   gap: 12px;
 }
 
+.dashboard__stats--triple {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
 .dashboard__stats--analysis {
   grid-template-columns: repeat(3, 1fr);
 }
