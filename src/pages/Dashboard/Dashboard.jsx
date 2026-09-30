@@ -478,6 +478,7 @@ export default function Dashboard() {
   };
   const salesMetricPath = (metric, range) => {
     const params = new URLSearchParams({ metric });
+    if (metric === 'sales_devices') params.set('status', 'Confirmed');
     if (range?.from) params.set('from', range.from);
     if (range?.to) params.set('to', range.to);
     return `/orders?${params.toString()}`;

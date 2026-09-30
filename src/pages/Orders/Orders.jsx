@@ -17,7 +17,7 @@ import StatusBadge from '../../components/StatusBadge/StatusBadge';
 import { exportOrdersToCsv } from '../../utils/exportOrdersCsv';
 import { deriveOrderConfirmationStatus } from '../../utils/orderConfirmationStatus';
 import { fulfillmentListLabel } from '../../utils/fulfillmentTimeline';
-import { DASHBOARD_METRICS, filterOrdersByMetric } from '../../utils/dashboardMetrics';
+import { DASHBOARD_METRICS, filterOrdersByMetric, isDevicesSoldInDateRange } from '../../utils/dashboardMetrics';
 import {
   isOrderCreatedInDateRange,
   isOrderPaymentInDateRange,
@@ -220,7 +220,9 @@ export default function Orders() {
 
       const matchesDateRange = metricFilter === 'sales_revenue_received'
         ? isOrderPaymentInDateRange(order, dateFrom, dateTo)
-        : isOrderCreatedInDateRange(order, dateFrom, dateTo);
+        : metricFilter === 'sales_devices'
+          ? isDevicesSoldInDateRange(order, dateFrom, dateTo)
+          : isOrderCreatedInDateRange(order, dateFrom, dateTo);
 
       const matchesSearch =
         !q ||
@@ -984,7 +986,11 @@ export default function Orders() {
           {(dateFrom || dateTo) && (
             <>
               <span>{` · ${
-                metricFilter === 'sales_revenue_received' ? 'Payment date' : 'Ordered At'
+                metricFilter === 'sales_revenue_received'
+                  ? 'Payment date'
+                  : metricFilter === 'sales_devices'
+                    ? 'COD order date, Razorpay payment date'
+                    : 'Ordered At'
               }: ${dateFrom || 'start'} to ${dateTo || 'end'}`}</span>
               <button
                 type="button"

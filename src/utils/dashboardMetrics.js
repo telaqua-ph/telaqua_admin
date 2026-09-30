@@ -4,6 +4,10 @@
 
 import { fulfillmentListLabel } from './fulfillmentTimeline';
 import { deriveOrderConfirmationStatus } from './orderConfirmationStatus';
+import {
+  isOrderCreatedInDateRange,
+  isOrderPaymentInDateRange,
+} from './orderDateRange';
 import { isCodOrder } from './shipmentHelpers';
 
 function isPaid(order) {
@@ -114,4 +118,10 @@ export function filterOrdersByMetric(orders, metricKey) {
   const metric = DASHBOARD_METRICS[metricKey];
   if (!metric) return orders;
   return orders.filter((o) => metric.match(o));
+}
+
+/** COD devices use the order date. Razorpay devices use the payment date. */
+export function isDevicesSoldInDateRange(order, from, to) {
+  if (isCodOrder(order)) return isOrderCreatedInDateRange(order, from, to);
+  return isOrderPaymentInDateRange(order, from, to);
 }
