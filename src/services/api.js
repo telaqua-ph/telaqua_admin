@@ -230,6 +230,8 @@ export function normalizeOrder(order) {
     // Shipment / Delhivery fields
     shipmentRecordId: order.shipment_record_id || order.shipmentRecordId || null,
     fulfillmentStatus: order.fulfillment_status || order.fulfillmentStatus || 'unfulfilled',
+    shippingProvider: order.shipping_provider || order.shippingProvider || 'Delhivery',
+    carrierId: order.carrier_id || order.carrierId || '',
     shipmentStatus: order.shipment_status || order.shipmentStatus || 'Not Created',
     shipmentStatusDisplay:
       order.shipment_status_display || order.shipmentStatusDisplay || '',

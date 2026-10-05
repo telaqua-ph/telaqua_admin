@@ -1,4 +1,4 @@
-/** Delhivery calls are always proxied through the authenticated Tel-Aqua API. */
+/** Fulfillment calls are always proxied through the authenticated Tel-Aqua API. */
 import { apiRequest } from './http';
 
 function params(values = {}) {
@@ -42,11 +42,6 @@ export function getWaybill(orderOrCount = 1) {
 
 export async function createShipment(payload) {
   const orderId = payload?.order_id || payload?.orderId;
-  let logistics = await getOrderLogistics(orderId);
-  if (!logistics?.shipment?.waybill_number) {
-    await getWaybill({ order_id: orderId });
-    logistics = await getOrderLogistics(orderId);
-  }
   return apiRequest(`/api/admin/logistics/orders/${orderId}/shipment`, { method: 'POST', body: {} });
 }
 

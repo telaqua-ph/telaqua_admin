@@ -183,6 +183,7 @@ export default function OrderDetails() {
 
   const shipmentReady = isShipmentCreated(order);
   const waybillReady = hasWaybill(order);
+  const isShipwayShipment = String(order?.shippingProvider || '').toLowerCase() === 'shipway';
   const createAllowed = canCreateShipment(order);
   const canCollectCod =
     isCodOrder(order) &&
@@ -1222,7 +1223,7 @@ export default function OrderDetails() {
                 </p>
               )}
 
-              {!shipmentReady && !waybillReady && createAllowed && (
+              {false && !shipmentReady && !waybillReady && createAllowed && (
                 <Button
                   variant="outline-primary"
                   disabled={busy || actionLoading === 'waybill'}
@@ -1233,7 +1234,7 @@ export default function OrderDetails() {
               )}
               {!shipmentReady && (
                 <Button
-                  disabled={busy || !createAllowed || !waybillReady || actionLoading === 'create'}
+                  disabled={busy || !createAllowed || actionLoading === 'create'}
                   onClick={() => {
                     setShipmentFailure(null);
                     setShowTechnicalDetails(false);
@@ -1250,12 +1251,13 @@ export default function OrderDetails() {
                   Shipment is blocked until payment is paid.
                 </p>
               )}
-              {createAllowed && !waybillReady && !shipmentReady && (
-                <p className="form-hint">Generate one waybill before creating the shipment.</p>
+              {createAllowed && !shipmentReady && (
+                <p className="form-hint">Creates the Shipway shipment and label together.</p>
               )}
 
               {shipmentReady && waybillReady && (
                 <>
+                  {isShipwayShipment && <p className="form-hint">Ready to Ship — Shipway label generated.</p>}
                   {!isDelivered && (
                     <>
                       {labelReady && (
@@ -1293,7 +1295,8 @@ export default function OrderDetails() {
                         </>
                       )}
 
-                      <Button
+                      {!isShipwayShipment && (
+                        <Button
                         variant="secondary"
                         disabled={
                           busy || pickupAlreadyRequested || actionLoading === 'pickup'
@@ -1305,11 +1308,13 @@ export default function OrderDetails() {
                           : actionLoading === 'pickup'
                           ? 'Requesting…'
                           : 'Request Pickup'}
-                      </Button>
+                        </Button>
+                      )}
                     </>
                   )}
 
-                  <Button
+                  {!isShipwayShipment && (
+                    <Button
                     variant="secondary"
                     disabled={busy || actionLoading === 'tracking'}
                     onClick={handleRefreshTracking}
@@ -1317,9 +1322,10 @@ export default function OrderDetails() {
                     {actionLoading === 'tracking'
                       ? 'Refreshing…'
                       : 'Track Shipment'}
-                  </Button>
+                    </Button>
+                  )}
 
-                  {!isDelivered && (
+                  {!isDelivered && !isShipwayShipment && (
                     <Button
                       variant="secondary"
                       disabled={busy}
