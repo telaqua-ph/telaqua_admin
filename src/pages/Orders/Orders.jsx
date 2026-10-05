@@ -5,6 +5,7 @@ import {
   deleteOrder,
   getOrderById,
   getOrders,
+  exportOrders,
   markSelectedCodPaymentsPaid,
   getPaymentStatuses,
   validatePromoCode,
@@ -266,8 +267,6 @@ export default function Orders() {
     unseenOnly,
     dateFrom,
     dateTo,
-    sortKey,
-    sortDir,
   ]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -291,7 +290,7 @@ export default function Orders() {
     dateTo,
   ]);
 
-  // Clear selection when filters/search change (keep across sort/page)
+  // Clear selection when the active result set changes; keep it across pagination and sorting.
   useEffect(() => {
     setSelectedIds(new Set());
     setBulkResult(null);
@@ -307,7 +306,6 @@ export default function Orders() {
     dateTo,
     sortKey,
     sortDir,
-    currentPage,
   ]);
 
   const currentPageIds = useMemo(
@@ -332,8 +330,8 @@ export default function Orders() {
   }, [someCurrentPageSelected]);
 
   const selectedOrders = useMemo(() => {
-    return pageData.filter((order) => selectedIds.has(orderKey(order)));
-  }, [pageData, selectedIds]);
+    return filtered.filter((order) => selectedIds.has(orderKey(order)));
+  }, [filtered, selectedIds]);
 
   const eligibleSelectedCodOrders = useMemo(
     () =>
@@ -786,6 +784,50 @@ export default function Orders() {
     }
   };
 
+  const handleExport = async ({ allTime = false } = {}) => {
+    if (bulkBusy) return;
+    const selectedOrderIds = [...selectedIds];
+    const exportingSelection = selectedOrderIds.length > 0;
+    const exportAllTime = allTime && !exportingSelection;
+    const activeFilters = exportAllTime
+      ? {
+          allTime: true,
+          selectedOrderIds: [],
+          search: '', statusFilter: 'All', paymentFilter: 'All', paymentModeFilter: 'All',
+          shipmentFilter: 'All', metricFilter: '', unseenOnly: false, startDate: '', endDate: '',
+        }
+      : {
+          selectedOrderIds,
+          search, statusFilter, paymentFilter, paymentModeFilter, shipmentFilter,
+          metricFilter, unseenOnly, startDate: dateFrom, endDate: dateTo,
+        };
+    const expectedCount = exportingSelection ? selectedOrderIds.length : filtered.length;
+    if (!expectedCount) {
+      setError('No orders match the current export filters.');
+      setMessage('');
+      return;
+    }
+    setBulkBusy(true);
+    setError('');
+    setMessage(`Downloading ${expectedCount} ${exportingSelection ? 'selected ' : ''}order${expectedCount === 1 ? '' : 's'}…`);
+    try {
+      const result = await exportOrders(activeFilters);
+      if (!result.orders.length) throw new Error('No orders match the current export selection and filters.');
+      if (exportingSelection && result.count !== selectedOrderIds.length) {
+        throw new Error(`Only ${result.count} of ${selectedOrderIds.length} selected orders match the current filters.`);
+      }
+      exportOrdersToCsv(result.orders, exportAllTime ? 'telaqua-orders-all-time.csv' : 'telaqua-orders-filtered.csv');
+      setMessage(`Downloaded ${result.count} ${exportingSelection ? 'selected ' : ''}order${result.count === 1 ? '' : 's'}.`);
+    } catch (err) {
+      if (err.status !== 401) {
+        setError(err.message || 'Unable to download orders for the current filters.');
+        setMessage('');
+      }
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
   const columns = [
     {
       key: 'select',
@@ -951,17 +993,15 @@ export default function Orders() {
           <Button
             variant="secondary"
             disabled={bulkBusy}
-            onClick={() =>
-              exportOrdersToCsv(filtered, 'telaqua-orders-filtered.csv')
-            }
+            onClick={() => handleExport()}
           >
-            Export Filtered
+            {selectedIds.size ? `Export ${selectedIds.size} Selected` : 'Export Filtered'}
           </Button>
           <Button
             disabled={bulkBusy}
-            onClick={() => exportOrdersToCsv(orders, 'telaqua-orders-all.csv')}
+            onClick={() => handleExport({ allTime: true })}
           >
-            Export All Orders
+            Export All Time
           </Button>
           <Button disabled={bulkBusy} onClick={openCodModal}>
             + Add COD Order

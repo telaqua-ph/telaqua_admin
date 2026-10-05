@@ -288,6 +288,17 @@ export async function getOrders() {
   return unwrapList(data).map(normalizeOrder);
 }
 
+export async function exportOrders(filters) {
+  const data = await apiRequest('/api/orders/export', {
+    method: 'POST',
+    body: filters,
+  });
+  return {
+    orders: unwrapList(data).map(normalizeOrder),
+    count: Number(data?.count) || unwrapList(data).length,
+  };
+}
+
 export async function getOrderById(id) {
   const data = await apiRequest(`/api/orders/${id}`);
   return normalizeOrder(unwrapItem(data));
