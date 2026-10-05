@@ -40,6 +40,14 @@ export function interpretShipmentError(rawMessage, status) {
   const text = String(rawMessage || '').toLowerCase();
   const title = 'Shipment Creation Failed';
 
+  if (text.startsWith('shipway:')) {
+    return {
+      title: 'Shipway Shipment Creation Failed',
+      code: 'shipway',
+      explanation: String(rawMessage).trim(),
+    };
+  }
+
   if (
     text.includes('insufficient balance') ||
     text.includes('prepaid client manifest charge') ||
