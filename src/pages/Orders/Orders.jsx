@@ -41,6 +41,7 @@ const ORDER_CONFIRMATION_FILTERS = ['New', 'Confirmed', 'Cancelled'];
 const SALES_METRICS = new Set([
   'sales_devices',
   'sales_cod_pending_devices',
+  'sales_total_devices',
   'sales_revenue_received',
   'sales_pending_revenue',
   'shipments_created',
@@ -222,7 +223,9 @@ export default function Orders() {
 
       const matchesDateRange = metricFilter === 'sales_revenue_received'
         ? isOrderPaymentInDateRange(order, dateFrom, dateTo)
-        : metricFilter === 'sales_devices' || metricFilter === 'sales_cod_pending_devices'
+        : metricFilter === 'sales_devices' ||
+            metricFilter === 'sales_cod_pending_devices' ||
+            metricFilter === 'sales_total_devices'
           ? isDevicesSoldInDateRange(order, dateFrom, dateTo)
           : isOrderCreatedInDateRange(order, dateFrom, dateTo);
 
@@ -1029,7 +1032,9 @@ export default function Orders() {
               <span>{` · ${
                 metricFilter === 'sales_revenue_received'
                   ? 'Payment date'
-                  : metricFilter === 'sales_devices' || metricFilter === 'sales_cod_pending_devices'
+                  : metricFilter === 'sales_devices' ||
+                      metricFilter === 'sales_cod_pending_devices' ||
+                      metricFilter === 'sales_total_devices'
                     ? 'COD order date, Razorpay payment date'
                     : 'Ordered At'
               }: ${dateFrom || 'start'} to ${dateTo || 'end'}`}</span>

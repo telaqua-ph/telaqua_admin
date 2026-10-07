@@ -101,6 +101,13 @@ export const DASHBOARD_METRICS = {
     title: 'COD Payment Pending',
     match: (o) => isConfirmedOrder(o) && !isRtoOrder(o) && isCodOrder(o) && !isPaid(o),
   },
+  sales_total_devices: {
+    title: 'Total Devices Sold',
+    filename: 'telaqua-total-devices-sold.csv',
+    match: (o) =>
+      DASHBOARD_METRICS.sales_devices.match(o) ||
+      DASHBOARD_METRICS.sales_cod_pending_devices.match(o),
+  },
   sales_revenue_received: {
     title: 'Revenue Received',
     match: (o) => isPaid(o) && !isCancelled(o),
@@ -131,6 +138,10 @@ export function filterOrdersByMetric(orders, metricKey) {
   const metric = DASHBOARD_METRICS[metricKey];
   if (!metric) return orders;
   return orders.filter((o) => metric.match(o));
+}
+
+export function totalDevicesSold(devicesSold, codPendingDevices) {
+  return Number(devicesSold ?? 0) + Number(codPendingDevices ?? 0);
 }
 
 /** COD devices use the order date. Razorpay devices use the payment date. */

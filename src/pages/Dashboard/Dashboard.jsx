@@ -9,6 +9,7 @@ import { fulfillmentListLabel } from '../../utils/fulfillmentTimeline';
 import {
   DASHBOARD_METRICS,
   filterOrdersByMetric,
+  totalDevicesSold,
 } from '../../utils/dashboardMetrics';
 import { exportOrdersToCsv } from '../../utils/exportOrdersCsv';
 import { isOrderCreatedInDateRange, todayInKolkata } from '../../utils/orderDateRange';
@@ -214,8 +215,14 @@ const SALES_GROUPS = [
     key: 'all',
     label: 'All time',
     cards: [
-      { key: 'devicesSold', title: 'Devices Sold', accent: 'blue', icon: icons.box, metric: 'sales_devices' },
-      { key: 'codPendingDevices', title: 'COD Payment Pending', accent: 'amber', icon: icons.box, metric: 'sales_cod_pending_devices' },
+      {
+        key: 'totalDevicesSold',
+        title: 'Total Devices Sold',
+        value: (data) => totalDevicesSold(data?.devicesSold, data?.codPendingDevices),
+        accent: 'blue',
+        icon: icons.box,
+        metric: 'sales_total_devices',
+      },
       {
         key: 'revenueReceived',
         title: 'Revenue Received',
@@ -230,8 +237,15 @@ const SALES_GROUPS = [
     key: 'today',
     label: 'Today',
     cards: [
-      { key: 'todayDevicesSold', title: 'Devices Sold', accent: 'orange', icon: icons.box, metric: 'sales_devices', range: 'today' },
-      { key: 'todayCodPendingDevices', title: 'COD Payment Pending', accent: 'amber', icon: icons.box, metric: 'sales_cod_pending_devices', range: 'today' },
+      {
+        key: 'todayTotalDevicesSold',
+        title: 'Total Devices Sold',
+        value: (data) => totalDevicesSold(data?.todayDevicesSold, data?.todayCodPendingDevices),
+        accent: 'orange',
+        icon: icons.box,
+        metric: 'sales_total_devices',
+        range: 'today',
+      },
       {
         key: 'todayRevenue',
         title: 'Revenue Received',
@@ -464,7 +478,11 @@ export default function Dashboard() {
   };
   const salesMetricPath = (metric, range) => {
     const params = new URLSearchParams({ metric });
-    if (metric === 'sales_devices' || metric === 'sales_cod_pending_devices') params.set('status', 'Confirmed');
+    if (
+      metric === 'sales_devices' ||
+      metric === 'sales_cod_pending_devices' ||
+      metric === 'sales_total_devices'
+    ) params.set('status', 'Confirmed');
     if (range?.from) params.set('from', range.from);
     if (range?.to) params.set('to', range.to);
     return `/orders?${params.toString()}`;
@@ -555,9 +573,8 @@ export default function Dashboard() {
           <div>
             <h3>Sales overview</h3>
             <p className="dashboard__section-note">
-              Devices Sold counts paid devices only (paid Razorpay orders and COD orders marked as paid).
-              COD Payment Pending counts confirmed COD devices not yet marked as paid. COD uses the order date,
-              Razorpay the payment date; RTO orders are excluded. Revenue includes confirmed payments only.
+              Total Devices Sold combines paid devices with confirmed COD devices not yet marked as paid.
+              COD uses the order date, Razorpay the payment date; RTO orders are excluded. Revenue includes confirmed payments only.
             </p>
           </div>
         </div>
@@ -571,7 +588,11 @@ export default function Dashboard() {
                     <StatCard
                       key={card.key}
                       title={card.title}
-                      value={card.format ? card.format(sales?.[card.key] ?? 0) : sales?.[card.key] ?? 0}
+                      value={card.format
+                        ? card.format(sales?.[card.key] ?? 0)
+                        : card.value
+                          ? card.value(sales)
+                          : sales?.[card.key] ?? 0}
                       icon={card.icon}
                       accent={card.accent}
                       to={salesMetricPath(card.metric, salesRanges[card.range])}
