@@ -18,6 +18,11 @@ function isPending(order) {
   return String(order?.paymentStatus || order?.payment_status || '').toLowerCase() === 'pending';
 }
 
+function isRazorpayFailedOrPending(order) {
+  const status = String(order?.paymentStatus || order?.payment_status || '').trim().toLowerCase();
+  return !isCodOrder(order) && (status === 'failed' || status === 'pending');
+}
+
 function isCancelled(order) {
   if (order?.isCancelled === true || Number(order?.is_cancelled) === 1) return true;
   if (order?.cancelled_at || order?.canceled_at) return true;
@@ -45,7 +50,7 @@ export const DASHBOARD_METRICS = {
     title: 'Total Orders',
     to: '/orders',
     filename: 'telaqua-total-orders.csv',
-    match: () => true,
+    match: (o) => !isRazorpayFailedOrPending(o),
   },
   new: {
     title: 'New Orders',
@@ -68,6 +73,12 @@ export const DASHBOARD_METRICS = {
     to: '/orders?payment=Pending',
     filename: 'telaqua-pending-payments.csv',
     match: (o) => isPending(o),
+  },
+  razorpay_failed_pending: {
+    title: 'Razorpay Failed & Pending Orders',
+    to: '/orders?metric=razorpay_failed_pending',
+    filename: 'telaqua-razorpay-failed-pending-orders.csv',
+    match: isRazorpayFailedOrPending,
   },
   cod: {
     title: 'Total COD Orders',

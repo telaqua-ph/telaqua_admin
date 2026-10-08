@@ -47,6 +47,7 @@ function computeStats(orders) {
     total: filterOrdersByMetric(orders, 'total').length,
     new: filterOrdersByMetric(orders, 'new').length,
     razorpayPaidOrders: filterOrdersByMetric(orders || [], 'razorpay_paid').length,
+    razorpayFailedPendingOrders: filterOrdersByMetric(orders || [], 'razorpay_failed_pending').length,
     pendingPayments: filterOrdersByMetric(orders, 'pending_payment').length,
     codOrders: filterOrdersByMetric(orders || [], 'cod').length,
     codPaidOrders: filterOrdersByMetric(orders || [], 'cod_paid').length,
@@ -65,6 +66,7 @@ function operationalStatsFromApi(data, orders) {
     total: Number(data.totalOrders || 0),
     new: Number(data.newOrders || 0),
     razorpayPaidOrders: filterOrdersByMetric(orders, 'razorpay_paid').length,
+    razorpayFailedPendingOrders: Number(data.razorpayFailedPendingOrders || 0),
     pendingPayments: Number(data.pendingPayments || 0),
     codOrders: filterOrdersByMetric(orders, 'cod').length,
     codPaidOrders: filterOrdersByMetric(orders, 'cod_paid').length,
@@ -183,6 +185,12 @@ const CARD_DEFS = [
     valueKey: 'razorpayPaidOrders',
     icon: icons.pay,
     accent: 'green',
+  },
+  {
+    key: 'razorpay_failed_pending',
+    valueKey: 'razorpayFailedPendingOrders',
+    icon: icons.pay,
+    accent: 'red',
   },
   {
     key: 'cod',
