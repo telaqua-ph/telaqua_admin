@@ -490,6 +490,7 @@ export async function getDashboardStats({ from, to } = {}) {
   const data = await apiRequest(`/api/dashboard/stats${suffix}`);
   return {
     totalOrders: Number(data?.totalOrders || 0),
+    razorpayFailedPendingOrders: Number(data?.razorpayFailedPendingOrders || 0),
     newOrders: Number(data?.newOrders || 0),
     paidOrders: Number(data?.paidOrders || 0),
     pendingPayments: Number(data?.pendingPayments || 0),
