@@ -15,7 +15,7 @@ import { DataTable } from '../../components/Tables';
 import { Button } from '../../components/Buttons';
 import { Modal } from '../../components/Modal';
 import StatusBadge from '../../components/StatusBadge/StatusBadge';
-import { exportOrdersToCsv } from '../../utils/exportOrdersCsv';
+import { exportOrdersToXlsx } from '../../utils/exportOrdersXlsx';
 import { deriveOrderConfirmationStatus } from '../../utils/orderConfirmationStatus';
 import { fulfillmentListLabel } from '../../utils/fulfillmentTimeline';
 import { DASHBOARD_METRICS, filterOrdersByMetric, isDevicesSoldInDateRange } from '../../utils/dashboardMetrics';
@@ -819,7 +819,13 @@ export default function Orders() {
       if (exportingSelection && result.count !== selectedOrderIds.length) {
         throw new Error(`Only ${result.count} of ${selectedOrderIds.length} selected orders match the current filters.`);
       }
-      exportOrdersToCsv(result.orders, exportAllTime ? 'telaqua-orders-all-time.csv' : 'telaqua-orders-filtered.csv');
+      const exportDate = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit',
+      }).format(new Date()).replace(/\//g, '-');
+      exportOrdersToXlsx(
+        result.orders,
+        `${exportAllTime ? 'telaqua-orders-all-time' : 'telaqua-orders-filtered'}-${exportDate}.xlsx`
+      );
       setMessage(`Downloaded ${result.count} ${exportingSelection ? 'selected ' : ''}order${result.count === 1 ? '' : 's'}.`);
     } catch (err) {
       if (err.status !== 401) {
