@@ -31,12 +31,22 @@ function isCancelled(order) {
 }
 
 // Shipments returning to origin (RTO in transit) or already returned are not
-// sales. Mirrors the API's Devices Sold filter.
+// sales. Canonical fulfillment fields are preferred; raw carrier status is
+// included for older/Shipway rows that have not been normalized yet.
 function isRtoOrder(order) {
-  const status = String(order?.fulfillment_status || order?.fulfillmentStatus || '')
-    .trim()
-    .toLowerCase();
-  return status === 'rto' || status === 'returned';
+  const statuses = [
+    order?.fulfillment_status,
+    order?.fulfillmentStatus,
+    order?.shipment_status,
+    order?.shipmentStatus,
+    order?.tracking_status,
+    order?.trackingStatus,
+  ];
+  return statuses.some((value) => {
+    const status = String(value || '').trim().toLowerCase();
+    return status === 'rto' || status === 'returned' ||
+      /(^|[^a-z])rto([^a-z]|$)|return/.test(status);
+  });
 }
 
 // Keep sales lists aligned with the dashboard aggregate. A paid payment or a
