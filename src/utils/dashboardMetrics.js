@@ -107,9 +107,9 @@ export const DASHBOARD_METRICS = {
     title: 'RTO/Return Orders',
     to: '/orders?metric=rto_return',
     filename: 'telaqua-rto-return-orders.csv',
-    // This is deliberately the subset removed from COD Paid Orders, so the
-    // two cards are mutually exclusive and reconstruct the previous count.
-    match: (o) => isCodOrder(o) && isPaid(o) && isRtoOrder(o),
+    // Operational RTO/returns are counted regardless of their payment state.
+    // Paid COD RTO/returns remain excluded from the COD Paid metric above.
+    match: isRtoOrder,
   },
   confirmed_cod_payment_pending: {
     title: 'Confirmed COD – Payment Pending',
