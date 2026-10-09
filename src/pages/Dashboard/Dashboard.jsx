@@ -212,12 +212,6 @@ const CARD_DEFS = [
     accent: 'green',
   },
   {
-    key: 'rto_return',
-    valueKey: 'rtoReturnOrders',
-    icon: icons.box,
-    accent: 'red',
-  },
-  {
     key: 'confirmed_cod_payment_pending',
     valueKey: 'confirmedCodPaymentPending',
     icon: icons.box,

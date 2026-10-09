@@ -47,7 +47,7 @@ const SALES_METRICS = new Set([
   'shipments_created',
 ]);
 
-const OPERATIONAL_METRICS = new Set(['new', 'cod_paid', 'rto_return']);
+const OPERATIONAL_METRICS = new Set(['new', 'cod_paid', 'rto_return', 'cancelled']);
 
 const SHIPMENT_FILTERS = [
   'All',

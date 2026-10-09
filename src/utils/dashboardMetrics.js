@@ -154,12 +154,11 @@ export const DASHBOARD_METRICS = {
   },
   cancelled: {
     title: 'Cancelled Orders',
-    to: '/orders?status=Cancelled',
+    to: '/orders?metric=cancelled',
     filename: 'telaqua-cancelled-orders.csv',
-    match: (o) => {
-      const s = String(o.status || o.orderStatus || o.order_status || '').toLowerCase();
-      return s === 'cancelled';
-    },
+    // Mirrors the merged dashboard count: cancellation evidence or the
+    // existing RTO/return shipment predicate, with no duplicate rows.
+    match: (o) => isCancelled(o) || isRtoOrder(o),
   },
 };
 
