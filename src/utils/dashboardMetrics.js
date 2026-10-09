@@ -88,10 +88,18 @@ export const DASHBOARD_METRICS = {
   },
   cod_paid: {
     title: 'COD Paid Orders',
-    to: '/orders?payment=Paid&paymentMode=COD',
+    to: '/orders?metric=cod_paid',
     filename: 'telaqua-cod-paid-orders.csv',
     match: (o) =>
-      isCodOrder(o) && isPaid(o),
+      isCodOrder(o) && isPaid(o) && !isRtoOrder(o),
+  },
+  rto_return: {
+    title: 'RTO/Return Orders',
+    to: '/orders?metric=rto_return',
+    filename: 'telaqua-rto-return-orders.csv',
+    // This is deliberately the subset removed from COD Paid Orders, so the
+    // two cards are mutually exclusive and reconstruct the previous count.
+    match: (o) => isCodOrder(o) && isPaid(o) && isRtoOrder(o),
   },
   confirmed_cod_payment_pending: {
     title: 'Confirmed COD – Payment Pending',

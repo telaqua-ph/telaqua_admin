@@ -51,6 +51,7 @@ function computeStats(orders) {
     pendingPayments: filterOrdersByMetric(orders, 'pending_payment').length,
     codOrders: filterOrdersByMetric(orders || [], 'cod').length,
     codPaidOrders: filterOrdersByMetric(orders || [], 'cod_paid').length,
+    rtoReturnOrders: filterOrdersByMetric(orders || [], 'rto_return').length,
     confirmedCodPaymentPending: filterOrdersByMetric(
       orders || [],
       'confirmed_cod_payment_pending'
@@ -62,14 +63,20 @@ function computeStats(orders) {
 
 function operationalStatsFromApi(data, orders) {
   if (!data) return null;
+  // Permit a frontend-only deployment while an older API process is still
+  // serving stats. Once the updated API is live, its database aggregates are
+  // used; otherwise the same source orders provide the exact fallback.
+  const codPaidOrders = filterOrdersByMetric(orders, 'cod_paid').length;
+  const rtoReturnOrders = filterOrdersByMetric(orders, 'rto_return').length;
   return {
     total: Number(data.totalOrders || 0),
     new: Number(data.newOrders || 0),
     razorpayPaidOrders: filterOrdersByMetric(orders, 'razorpay_paid').length,
     razorpayFailedPendingOrders: Number(data.razorpayFailedPendingOrders || 0),
     pendingPayments: Number(data.pendingPayments || 0),
-    codOrders: filterOrdersByMetric(orders, 'cod').length,
-    codPaidOrders: filterOrdersByMetric(orders, 'cod_paid').length,
+    codOrders: Number(data.codOrders || 0),
+    codPaidOrders: data.codPaidOrders == null ? codPaidOrders : Number(data.codPaidOrders),
+    rtoReturnOrders: data.rtoReturnOrders == null ? rtoReturnOrders : Number(data.rtoReturnOrders),
     confirmedCodPaymentPending: filterOrdersByMetric(
       orders,
       'confirmed_cod_payment_pending'
@@ -203,6 +210,12 @@ const CARD_DEFS = [
     valueKey: 'codPaidOrders',
     icon: icons.pay,
     accent: 'green',
+  },
+  {
+    key: 'rto_return',
+    valueKey: 'rtoReturnOrders',
+    icon: icons.box,
+    accent: 'red',
   },
   {
     key: 'confirmed_cod_payment_pending',

@@ -47,6 +47,8 @@ const SALES_METRICS = new Set([
   'shipments_created',
 ]);
 
+const OPERATIONAL_METRICS = new Set(['new', 'cod_paid', 'rto_return']);
+
 const SHIPMENT_FILTERS = [
   'All',
   'Unfulfilled',
@@ -157,7 +159,7 @@ export default function Orders() {
       setShipmentFilter(shipment);
     }
 
-    setMetricFilter(metric === 'new' || SALES_METRICS.has(metric) ? metric : '');
+    setMetricFilter(OPERATIONAL_METRICS.has(metric) || SALES_METRICS.has(metric) ? metric : '');
     setUnseenOnly(unseen);
     setDateFrom(/^\d{4}-\d{2}-\d{2}$/.test(from) ? from : '');
     setDateTo(/^\d{4}-\d{2}-\d{2}$/.test(to) ? to : '');
