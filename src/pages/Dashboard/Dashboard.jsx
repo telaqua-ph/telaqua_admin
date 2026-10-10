@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getDashboardStats, getOrders } from '../../services/api';
+import { exportDeletedOrders, getDashboardStats, getOrders } from '../../services/api';
+import { downloadDeletedOrdersCsv } from '../../utils/exportDeletedOrdersCsv';
 import { StatCard } from '../../components/Cards';
 import { DataTable } from '../../components/Tables';
 import { Button } from '../../components/Buttons';
@@ -39,6 +40,9 @@ const icons = {
       <circle cx="12" cy="12" r="9" />
       <path d="M8 8l8 8M16 8l-8 8" />
     </svg>
+  ),
+  deleted: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v5M14 11v5" /></svg>
   ),
 };
 
@@ -83,6 +87,7 @@ function operationalStatsFromApi(data, orders) {
     ).length,
     shipmentsCreated: Number(data.shipmentsCreated || 0),
     cancelledOrders: Number(data.cancelledOrders || 0),
+    deletedOrders: Number(data.deletedOrders || 0),
   };
 }
 
@@ -408,9 +413,11 @@ export default function Dashboard() {
     };
     window.addEventListener('orders:seen-changed', handleOrdersChanged);
     window.addEventListener('orders:payment-changed', handleOrdersChanged);
+    window.addEventListener('orders:deleted', handleOrdersChanged);
     return () => {
       window.removeEventListener('orders:seen-changed', handleOrdersChanged);
       window.removeEventListener('orders:payment-changed', handleOrdersChanged);
+      window.removeEventListener('orders:deleted', handleOrdersChanged);
     };
   }, [appliedRange, applyStats, loadDashboard]);
 
@@ -419,6 +426,22 @@ export default function Dashboard() {
     if (!metric) return;
     const rows = filterOrdersByMetric(orders, metricKey);
     exportOrdersToCsv(rows, metric.filename);
+  };
+
+  const handleDownloadDeletedOrders = async () => {
+    try {
+      const { orders: deletedOrders } = await exportDeletedOrders();
+      if (!deletedOrders.length) {
+        setError('There are no deleted orders to download.');
+        return;
+      }
+      downloadDeletedOrdersCsv(
+        deletedOrders,
+        `telaqua-deleted-orders-${new Date().toISOString().slice(0, 10)}.csv`
+      );
+    } catch (err) {
+      if (err.status !== 401) setError(err.message || 'Failed to download deleted orders CSV.');
+    }
   };
 
   const columns = [
@@ -581,6 +604,14 @@ export default function Dashboard() {
             />
           );
         })}
+        <StatCard
+          title="Deleted Orders"
+          value={stats?.deletedOrders ?? 0}
+          icon={icons.deleted}
+          accent="red"
+          to="/deleted-orders"
+          onDownload={handleDownloadDeletedOrders}
+        />
       </div>
 
       <section className="panel">

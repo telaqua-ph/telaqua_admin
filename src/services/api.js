@@ -224,6 +224,8 @@ export function normalizeOrder(order) {
     orderedTime: formatTimePart(order.created_at || order.date),
     createdAt: order.created_at || null,
     updatedAt: order.updated_at || null,
+    deletedAt: order.deleted_at || order.deletedAt || null,
+    deletedBy: order.deleted_by_email || order.deletedBy || order.deleted_by || '',
     isSeen: Boolean(order.is_seen ?? order.isSeen ?? false),
     firstViewedAt: order.first_viewed_at || order.firstViewedAt || null,
     lastViewedAt: order.last_viewed_at || order.lastViewedAt || null,
@@ -286,6 +288,19 @@ export function normalizeOrder(order) {
 export async function getOrders() {
   const data = await apiRequest('/api/orders');
   return unwrapList(data).map(normalizeOrder);
+}
+
+export async function getDeletedOrders() {
+  const data = await apiRequest('/api/orders/deleted');
+  return unwrapList(data).map(normalizeOrder);
+}
+
+export async function exportDeletedOrders() {
+  const data = await apiRequest('/api/orders/deleted/export');
+  return {
+    orders: unwrapList(data).map(normalizeOrder),
+    count: Number(data?.count) || unwrapList(data).length,
+  };
 }
 
 export async function exportOrders(filters) {
@@ -394,6 +409,7 @@ export async function markSelectedCodPaymentsPaid(orderIds) {
 
 export async function deleteOrder(id) {
   await apiRequest(`/api/orders/${id}`, { method: 'DELETE' });
+  window.dispatchEvent(new Event('orders:deleted'));
   return { success: true };
 }
 
@@ -498,6 +514,7 @@ export async function getDashboardStats({ from, to } = {}) {
     shipmentsCreated: Number(data?.shipmentsCreated || 0),
     cancelledOrders: Number(data?.cancelledOrders || 0),
     unseenOrders: Number(data?.unseenOrders || 0),
+    deletedOrders: Number(data?.deletedOrders || 0),
     devicesSold: Number(data?.devicesSold || 0),
     codPendingDevices: Number(data?.codPendingDevices || 0),
     revenueReceived: Number(data?.revenueReceived || 0),

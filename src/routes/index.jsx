@@ -5,6 +5,7 @@ import Login from '../pages/Login';
 import Dashboard from '../pages/Dashboard';
 import Orders from '../pages/Orders';
 import OrderDetails from '../pages/OrderDetails';
+import DeletedOrders from '../pages/DeletedOrders';
 import Products from '../pages/Products';
 import AddProduct from '../pages/AddProduct';
 import EditProduct from '../pages/EditProduct';
@@ -29,6 +30,7 @@ export default function AppRoutes() {
         <Route index element={<Dashboard />} />
         <Route path="orders" element={<Orders />} />
         <Route path="orders/:id" element={<OrderDetails />} />
+        <Route path="deleted-orders" element={<DeletedOrders />} />
         <Route path="inventory" element={<Inventory />} />
         <Route path="promo-codes" element={<PromoCodes />} />
         <Route path="revenue" element={<Revenue />} />

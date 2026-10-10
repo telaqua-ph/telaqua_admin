@@ -12,10 +12,6 @@
   grid-column: span 3;
 }
 
-.dashboard__stats--operations > :nth-child(n + 5) {
-  grid-column: span 4;
-}
-
 .dashboard__stats--pair {
   grid-template-columns: repeat(2, 1fr);
   gap: 12px;
