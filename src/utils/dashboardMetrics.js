@@ -2,13 +2,13 @@
  * Shared dashboard metric → route / filter helpers.
  */
 
-import { fulfillmentListLabel } from './fulfillmentTimeline';
-import { deriveOrderConfirmationStatus } from './orderConfirmationStatus';
+import { fulfillmentListLabel } from './fulfillmentTimeline.js';
+import { deriveOrderConfirmationStatus } from './orderConfirmationStatus.js';
 import {
   isOrderCreatedInDateRange,
   isOrderPaymentInDateRange,
-} from './orderDateRange';
-import { isCodOrder } from './shipmentHelpers';
+} from './orderDateRange.js';
+import { isCodOrder } from './shipmentHelpers.js';
 
 function isPaid(order) {
   return String(order?.paymentStatus || order?.payment_status || '').toLowerCase() === 'paid';
@@ -118,7 +118,9 @@ export const DASHBOARD_METRICS = {
     match: (o) =>
       isCodOrder(o) &&
       deriveOrderConfirmationStatus(o) === 'Confirmed' &&
-      isPending(o),
+      isPending(o) &&
+      !isCancelled(o) &&
+      !isRtoOrder(o),
   },
   // Devices Sold = paid only (Razorpay paid + COD marked paid).
   sales_devices: {
