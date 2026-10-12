@@ -12,6 +12,7 @@ import {
   updateOrderStatus,
 } from '../../services/api';
 import * as delhivery from '../../services/delhivery';
+import * as shipway from '../../services/shipway';
 import { Button } from '../../components/Buttons';
 import StatusBadge from '../../components/StatusBadge/StatusBadge';
 import { Modal } from '../../components/Modal';
@@ -72,6 +73,7 @@ export default function OrderDetails() {
   const [actionLoading, setActionLoading] = useState('');
   const [trackingPayload, setTrackingPayload] = useState(null);
   const [trackingHistory, setTrackingHistory] = useState([]);
+  const [shipwayTracking, setShipwayTracking] = useState(null);
   const [logisticsChecks, setLogisticsChecks] = useState({
     serviceability: null,
     tat: null,
@@ -124,6 +126,15 @@ export default function OrderDetails() {
     ]);
     setOrder(data);
     setTrackingHistory(Array.isArray(logistics?.tracking_history) ? logistics.tracking_history : []);
+    if (String(data?.shippingProvider || '').toLowerCase() === 'shipway') {
+      const tracking = await shipway.getShipwayOrderTracking(id).catch(() => null);
+      if (tracking) {
+        setShipwayTracking(tracking);
+        setTrackingHistory(Array.isArray(tracking.tracking_history) ? tracking.tracking_history : []);
+      }
+    } else {
+      setShipwayTracking(null);
+    }
     if (data) {
       setStatus(data.status);
       setPaymentStatus(data.paymentStatus);
@@ -163,6 +174,16 @@ export default function OrderDetails() {
         }
         setOrder(data);
         setTrackingHistory(Array.isArray(logistics?.tracking_history) ? logistics.tracking_history : []);
+        if (String(data?.shippingProvider || '').toLowerCase() === 'shipway') {
+          const tracking = await shipway.getShipwayOrderTracking(id).catch(() => null);
+          if (!active) return;
+          if (tracking) {
+            setShipwayTracking(tracking);
+            setTrackingHistory(Array.isArray(tracking.tracking_history) ? tracking.tracking_history : []);
+          }
+        } else {
+          setShipwayTracking(null);
+        }
         setStatus(data.status);
         setPaymentStatus(data.paymentStatus);
         markOrderSeen(id).catch(() => {});
@@ -440,16 +461,21 @@ export default function OrderDetails() {
   };
 
   const handleRefreshTracking = async () => {
-    if (!order?.waybill || actionLoading === 'tracking') return;
+    if (actionLoading === 'tracking' || (!isShipwayShipment && !order?.waybill)) return;
     const result = await runAction(
       'tracking',
-      () =>
-        delhivery.getTracking(order.waybill, {
-          order_id: Number(order.id) || order.id,
-        }),
-      'Tracking refreshed.'
+      () => isShipwayShipment
+        ? shipway.refreshShipwayOrderTracking(order.id)
+        : delhivery.getTracking(order.waybill, { order_id: Number(order.id) || order.id }),
+      isShipwayShipment ? 'Shipway tracking refreshed.' : 'Tracking refreshed.'
     );
-    if (result) setTrackingPayload(result);
+    if (result) {
+      setTrackingPayload(result);
+      if (isShipwayShipment) {
+        setShipwayTracking(result);
+        setTrackingHistory(Array.isArray(result.tracking_history) ? result.tracking_history : []);
+      }
+    }
   };
 
   const openEditShipment = () => {
@@ -604,10 +630,12 @@ export default function OrderDetails() {
           label: event.status,
           at: event.event_time || event.created_at || '',
           location: event.location || '',
+          instructions: event.instructions || '',
         }))
       : extractTrackingEvents(trackingPayload),
     [trackingHistory, trackingPayload]
   );
+  const latestTracking = isShipwayShipment ? shipwayTracking : null;
   const isDelivered =
     String(order?.trackingStatus || '')
       .toLowerCase()
@@ -961,27 +989,34 @@ export default function OrderDetails() {
                 <div>
                   <span>Current Status</span>
                   <strong>
-                    {order.shipmentStatusDisplay || order.trackingStatus || 'Not Available'}
+                    {latestTracking?.shipment_status || order.shipmentStatusDisplay || order.trackingStatus || 'Not Available'}
                   </strong>
                 </div>
                 <div>
                   <span>Status Time</span>
                   <strong>
-                    {order.shipmentStatusUpdatedAtLabel || order.trackingUpdatedAtLabel || '—'}
+                    {latestTracking?.shipment_status_at || order.shipmentStatusUpdatedAtLabel || order.trackingUpdatedAtLabel || '—'}
                   </strong>
                 </div>
                 <div>
                   <span>Last Refreshed</span>
-                  <strong>{order.trackingRefreshedAtLabel || '—'}</strong>
+                  <strong>{latestTracking?.last_tracking_update || order.trackingRefreshedAtLabel || '—'}</strong>
                 </div>
                 <div>
                   <span>Current Location</span>
-                  <strong>{order.trackingLocation || 'Not Available'}</strong>
+                  <strong>{latestTracking?.current_location || order.trackingLocation || 'Not Available'}</strong>
                 </div>
                 <div>
                   <span>AWB</span>
                   <strong>{order.waybill || '—'}</strong>
                 </div>
+                {isShipwayShipment && (
+                  <>
+                    <div><span>Carrier</span><strong>{latestTracking?.courier_name || 'Not Available'}</strong></div>
+                    <div><span>Status Code</span><strong>{latestTracking?.shipment_status_code || '—'}</strong></div>
+                    <div><span>Expected Delivery</span><strong>{latestTracking?.expected_delivery_date || order.expectedDeliveryDate || 'Not Available'}</strong></div>
+                  </>
+                )}
               </div>
             </div>
 
@@ -1021,13 +1056,21 @@ export default function OrderDetails() {
                       <strong>{event.label}</strong>
                       {event.at ? <span>{event.at}</span> : null}
                       {event.location ? <span>{event.location}</span> : null}
+                      {event.instructions ? <span>{event.instructions}</span> : null}
                     </li>
                   ))}
                 </ul>
               </div>
             )}
 
-            {trackingPayload && trackingEvents.length === 0 && (
+            {isShipwayShipment && trackingEvents.length === 0 && (
+              <div className="panel__body order-details__tracking-raw">
+                <h4>Tracking events</h4>
+                <p className="form-hint">No Shipway tracking events are available yet. Refresh tracking after the courier has scanned the shipment.</p>
+              </div>
+            )}
+
+            {!isShipwayShipment && trackingPayload && trackingEvents.length === 0 && (
               <div className="panel__body order-details__tracking-raw">
                 <h4>Latest tracking response</h4>
                 <pre>{JSON.stringify(trackingPayload, null, 2)}</pre>
@@ -1313,17 +1356,15 @@ export default function OrderDetails() {
                     </>
                   )}
 
-                  {!isShipwayShipment && (
-                    <Button
+                  <Button
                     variant="secondary"
                     disabled={busy || actionLoading === 'tracking'}
                     onClick={handleRefreshTracking}
                   >
                     {actionLoading === 'tracking'
                       ? 'Refreshing…'
-                      : 'Track Shipment'}
-                    </Button>
-                  )}
+                      : isShipwayShipment ? 'Refresh Shipway Tracking' : 'Track Shipment'}
+                  </Button>
 
                   {!isDelivered && !isShipwayShipment && (
                     <Button
@@ -1337,7 +1378,7 @@ export default function OrderDetails() {
                 </>
               )}
 
-              {showNdr && !isDelivered && (
+              {showNdr && !isDelivered && !isShipwayShipment && (
                 <div className="order-details__ndr">
                   <h4>⚠ Delivery Exception / NDR</h4>
                   <p className="form-hint">
