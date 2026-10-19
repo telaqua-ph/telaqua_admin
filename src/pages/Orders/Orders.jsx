@@ -35,6 +35,12 @@ import {
 import '../../styles/shared.css';
 import './Orders.css';
 
+// No response reached the browser (connection dropped or the server took too long).
+// The booking may still have succeeded in Shipway; Retry looks it up first and never books twice.
+const NO_RESPONSE_SHIPMENT_REASON =
+  'No response from the server (connection dropped or request took too long). ' +
+  'It may already be booked in Shipway. Press Retry on Wi-Fi: it checks Shipway first and never books twice.';
+
 const PAGE_SIZE = 10;
 
 const ORDER_CONFIRMATION_FILTERS = ['New', 'Confirmed', 'Cancelled'];
@@ -562,9 +568,11 @@ export default function Orders() {
           setBulkProgress(null);
           return;
         }
-        const reason = sanitizeTechnicalMessage(
-          extractBackendMessage(err) || err.message || 'Shipment creation failed'
-        );
+        const reason = err.status === 0
+          ? NO_RESPONSE_SHIPMENT_REASON
+          : sanitizeTechnicalMessage(
+              extractBackendMessage(err) || err.message || 'Shipment creation failed'
+            );
         failures.push({
           id: order.id,
           orderNumber: order.orderNumber || String(order.id),
@@ -769,9 +777,11 @@ export default function Orders() {
       await loadOrders();
     } catch (err) {
       if (err.status !== 401) {
-        const reason = sanitizeTechnicalMessage(
-          extractBackendMessage(err) || err.message || 'Shipment creation failed'
-        );
+        const reason = err.status === 0
+          ? NO_RESPONSE_SHIPMENT_REASON
+          : sanitizeTechnicalMessage(
+              extractBackendMessage(err) || err.message || 'Shipment creation failed'
+            );
         setBulkResult((prev) => {
           if (!prev) return prev;
           return {
