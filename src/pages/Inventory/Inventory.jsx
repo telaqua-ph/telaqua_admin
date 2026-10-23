@@ -239,10 +239,16 @@ export default function Inventory() {
           accent="blue"
         />
         <StatCard
-          title="Sold"
+          title="Sold + Confirmed COD – Payment Pending"
           value={totals?.sold ?? 0}
           icon={icons.sold}
           accent="orange"
+        />
+        <StatCard
+          title="Confirmed COD – Payment Pending"
+          value={totals?.cod_payment_pending ?? 0}
+          icon={icons.sold}
+          accent="amber"
         />
         <StatCard
           title="Remaining"
