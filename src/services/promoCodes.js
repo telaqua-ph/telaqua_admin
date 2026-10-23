@@ -74,6 +74,11 @@ export function normalizePromoCode(row) {
   const usageLimit =
     usageRaw === undefined || usageRaw === null ? null : Number(usageRaw);
   const usedCount = Number(row.used_count ?? row.usedCount ?? 0);
+  // Unique customers with a successfully placed order using this code
+  // (calculated by the backend). null when an older API does not send it.
+  const uniqueRaw = row.unique_successful_customers ?? row.uniqueSuccessfulCustomers;
+  const uniqueSuccessfulCustomers =
+    uniqueRaw === undefined || uniqueRaw === null ? null : Number(uniqueRaw);
   const isActive = Boolean(row.is_active ?? row.isActive);
   const validFrom = row.valid_from ?? row.validFrom ?? null;
   const validUntil = row.valid_until ?? row.validUntil ?? null;
@@ -94,6 +99,9 @@ export function normalizePromoCode(row) {
     statusLabel: effectiveStatus,
     usageLimit: Number.isFinite(usageLimit) ? usageLimit : null,
     usedCount: Number.isFinite(usedCount) ? usedCount : 0,
+    uniqueSuccessfulCustomers: Number.isFinite(uniqueSuccessfulCustomers)
+      ? uniqueSuccessfulCustomers
+      : null,
     createdAt: row.created_at || row.createdAt || null,
     updatedAt: row.updated_at || row.updatedAt || null,
     createdAtLabel: formatDateTime(row.created_at || row.createdAt),

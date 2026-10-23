@@ -378,7 +378,8 @@ export default function PromoCodes() {
     {
       key: 'usedCount',
       label: 'Used',
-      render: (row) => String(row.usedCount ?? 0),
+      // Unique customers with successful orders; falls back to the stored counter.
+      render: (row) => String(row.uniqueSuccessfulCustomers ?? row.usedCount ?? 0),
     },
     {
       key: 'dates',
