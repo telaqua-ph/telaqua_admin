@@ -40,5 +40,5 @@ test('merges Tel-Aqua order data into its canonical Shipway fields', () => {
   assert.equal(rows[0]['*Order Total Amount'], 3598);
   assert.equal(rows[0]['*Payment Type'], 'P');
   assert.equal(rows[0]['*Order Date'], '2026-10-08 07:00:00');
-  assert.equal(columns.length, 40);
+  assert.equal(columns.length, 44);
 });

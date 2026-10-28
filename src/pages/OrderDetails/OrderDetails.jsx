@@ -874,10 +874,44 @@ export default function OrderDetails() {
                 <span>Payment ID</span>
                 <strong>{order.paymentId || '—'}</strong>
               </div>
-              <div>
-                <span>Total paid</span>
-                <strong>₹{order.total}</strong>
-              </div>
+              {order.hasCodAdvance ? (
+                <>
+                  <div>
+                    <span>Product amount</span>
+                    <strong>₹{order.total}</strong>
+                  </div>
+                  <div>
+                    <span>Advance delivery fee (non-refundable)</span>
+                    <strong>
+                      ₹{order.codAdvanceFee ?? 99}{' '}
+                      <StatusBadge status={order.codAdvanceStatus === 'paid' ? 'Paid' : order.codAdvanceStatus || 'Pending'} />
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Advance payment reference</span>
+                    <strong>{order.codAdvancePaymentId || '—'}</strong>
+                  </div>
+                  <div>
+                    <span>COD amount due</span>
+                    <strong>₹{order.codAmountDue ?? order.total}</strong>
+                  </div>
+                  <div>
+                    <span>COD collection status</span>
+                    <strong>
+                      <StatusBadge status={order.paymentStatus} />
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Total order value</span>
+                    <strong>₹{Number(order.total || 0) + Number(order.codAdvanceFee ?? 99)}</strong>
+                  </div>
+                </>
+              ) : (
+                <div>
+                  <span>Total paid</span>
+                  <strong>₹{order.total}</strong>
+                </div>
+              )}
               <div>
                 <span>Promo code</span>
                 <strong>{order.promoCode || '—'}</strong>

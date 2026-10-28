@@ -151,7 +151,7 @@ export default function Orders() {
       setPaymentFilter(payment);
     }
 
-    if (paymentMode === 'COD' || paymentMode === 'Razorpay') {
+    if (paymentMode === 'COD' || paymentMode === 'Razorpay' || paymentMode === 'COD Advance') {
       setPaymentModeFilter(paymentMode);
     } else {
       setPaymentModeFilter('All');
@@ -222,7 +222,10 @@ export default function Orders() {
       const matchesPayment =
         paymentFilter === 'All' || order.paymentStatus === paymentFilter;
       const matchesPaymentMode =
-        paymentModeFilter === 'All' || order.paymentMode === paymentModeFilter;
+        paymentModeFilter === 'All' ||
+        (paymentModeFilter === 'COD Advance'
+          ? order.paymentMode === 'COD' && order.hasCodAdvance
+          : order.paymentMode === paymentModeFilter);
       const matchesSeen = !unseenOnly || !order.isSeen;
       let matchesShipment = true;
       if (shipmentFilter !== 'All') {
@@ -936,7 +939,24 @@ export default function Orders() {
     {
       key: 'paymentMode',
       label: 'Payment Mode',
-      render: (row) => row.paymentMode || '—',
+      render: (row) =>
+        row.hasCodAdvance ? (
+          <div className="orders__customer">
+            <span>{row.paymentMode}</span>
+            <span>
+              Advance ₹{row.codAdvanceFee ?? 99}:{' '}
+              {row.codAdvanceStatus === 'paid' ? 'Paid' : row.codAdvanceStatus || '—'}
+            </span>
+            {row.codAdvancePaymentId ? (
+              <span className="orders__payment-id" title={row.codAdvancePaymentId}>
+                Ref: {row.codAdvancePaymentId}
+              </span>
+            ) : null}
+            <span>COD due: ₹{row.codAmountDue ?? row.total}</span>
+          </div>
+        ) : (
+          row.paymentMode || '—'
+        ),
     },
     {
       key: 'promoCode',
@@ -1231,6 +1251,7 @@ export default function Orders() {
             >
               <option value="All">All payment modes</option>
               <option value="COD">COD</option>
+              <option value="COD Advance">COD + ₹99 advance</option>
               <option value="Razorpay">Razorpay</option>
             </select>
 
