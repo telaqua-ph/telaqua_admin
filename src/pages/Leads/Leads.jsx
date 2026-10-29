@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { getLeads } from '../../services/api';
+import { deleteLead, getLeads } from '../../services/api';
 import { DataTable } from '../../components/Tables';
 import { Button } from '../../components/Buttons';
 import StatusBadge from '../../components/StatusBadge/StatusBadge';
@@ -26,6 +26,8 @@ export default function Leads() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [deletingId, setDeletingId] = useState(null);
 
   const load = async () => {
     setError('');
@@ -39,6 +41,23 @@ export default function Leads() {
   useEffect(() => {
     load().finally(() => setLoading(false));
   }, []);
+
+  const handleDelete = async (lead) => {
+    const name = lead.customerName || lead.phone || lead.orderNumber;
+    if (!window.confirm(`Delete lead ${lead.orderNumber} (${name})? It will be removed from this list.`)) return;
+    setDeletingId(lead.leadId);
+    setError('');
+    setMessage('');
+    try {
+      await deleteLead(lead.leadId);
+      setLeads((prev) => prev.filter((item) => item.leadId !== lead.leadId));
+      setMessage(`Lead ${lead.orderNumber} deleted.`);
+    } catch (err) {
+      if (err.status !== 401) setError(err.message || 'Failed to delete lead.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const refresh = async () => {
     setRefreshing(true);
@@ -136,6 +155,20 @@ export default function Leads() {
           '—'
         ),
     },
+    {
+      key: 'actions',
+      label: 'Action',
+      render: (lead) => (
+        <Button
+          size="sm"
+          variant="danger"
+          disabled={deletingId === lead.leadId}
+          onClick={() => handleDelete(lead)}
+        >
+          {deletingId === lead.leadId ? 'Deleting…' : 'Delete'}
+        </Button>
+      ),
+    },
   ];
 
   if (loading) return <div className="loading-state">Loading leads…</div>;
@@ -153,6 +186,7 @@ export default function Leads() {
       </div>
 
       {error && <div className="alert alert--error">{error}</div>}
+      {message && <div className="alert alert--info">{message}</div>}
 
       <section className="panel">
         <div className="panel__header orders__toolbar-wrap">

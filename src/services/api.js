@@ -302,6 +302,11 @@ export async function getOrders() {
  * Leads: COD checkouts where the customer entered the address but left without
  * paying the ₹99 advance. These are not orders (nothing to ship).
  */
+/** Removes a lead from the Leads page (kept on record in the backend). */
+export async function deleteLead(leadId) {
+  await apiRequest(`/api/orders/cod-advance/unpaid/${encodeURIComponent(leadId)}`, { method: 'DELETE' });
+}
+
 export async function getLeads() {
   const data = await apiRequest('/api/orders/cod-advance/unpaid');
   const list = Array.isArray(data?.checkouts) ? data.checkouts : [];
