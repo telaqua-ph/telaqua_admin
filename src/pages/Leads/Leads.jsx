@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { deleteLead, getLeads } from '../../services/api';
+import { deleteLead, deleteOrder, getLeads } from '../../services/api';
 import { DataTable } from '../../components/Tables';
 import { Button } from '../../components/Buttons';
 import StatusBadge from '../../components/StatusBadge/StatusBadge';
@@ -15,9 +15,10 @@ const whatsappLink = (phone) => {
 };
 
 /**
- * Leads: customers who chose Cash on Delivery, filled in their address and left
- * without paying the ₹99 advance. No order exists for these, so nothing here
- * can be shipped; they are listed for follow-up only.
+ * Leads: unpaid checkouts, for follow-up only.
+ *  - COD: customer filled in the address but did not pay the ₹99 advance (no order exists).
+ *  - Online: Razorpay order created but the payment is still Pending or Failed.
+ *    Once the payment succeeds the order leaves Leads and appears in Orders.
  */
 export default function Leads() {
   const [leads, setLeads] = useState([]);
@@ -44,12 +45,16 @@ export default function Leads() {
 
   const handleDelete = async (lead) => {
     const name = lead.customerName || lead.phone || lead.orderNumber;
-    if (!window.confirm(`Delete lead ${lead.orderNumber} (${name})? It will be removed from this list.`)) return;
+    const prompt = lead.leadType === 'online'
+      ? `Delete lead ${lead.orderNumber} (${name})? The unpaid order will be moved to Deleted Orders.`
+      : `Delete lead ${lead.orderNumber} (${name})? It will be removed from this list.`;
+    if (!window.confirm(prompt)) return;
     setDeletingId(lead.leadId);
     setError('');
     setMessage('');
     try {
-      await deleteLead(lead.leadId);
+      if (lead.leadType === 'online') await deleteOrder(lead.orderId);
+      else await deleteLead(lead.leadId);
       setLeads((prev) => prev.filter((item) => item.leadId !== lead.leadId));
       setMessage(`Lead ${lead.orderNumber} deleted.`);
     } catch (err) {
@@ -69,7 +74,7 @@ export default function Leads() {
     const q = search.trim().toLowerCase();
     if (!q) return leads;
     return leads.filter((lead) =>
-      [lead.customerName, lead.phone, lead.email, lead.city, lead.state, lead.pincode, lead.promoCode]
+      [lead.orderNumber, lead.customerName, lead.phone, lead.email, lead.city, lead.state, lead.pincode, lead.promoCode]
         .some((value) => String(value || '').toLowerCase().includes(q))
     );
   }, [leads, search]);
@@ -116,21 +121,24 @@ export default function Leads() {
       label: 'Payment',
       render: (lead) => (
         <div className="orders__customer">
-          <StatusBadge status="Pending" />
-          <span>cod</span>
+          <StatusBadge status={lead.leadType === 'online' ? lead.paymentStatus : 'Pending'} />
+          <span>{lead.leadType === 'online' ? 'online' : 'cod'}</span>
         </div>
       ),
     },
     {
       key: 'paymentMode',
       label: 'Payment Mode',
-      render: (lead) => (
-        <div className="orders__customer">
-          <span>COD</span>
-          <span>Advance ₹99: Not paid</span>
-          <span>COD due: ₹{lead.codAmountDue ?? lead.total}</span>
-        </div>
-      ),
+      render: (lead) =>
+        lead.leadType === 'online' ? (
+          'Online'
+        ) : (
+          <div className="orders__customer">
+            <span>COD</span>
+            <span>Advance ₹99: Not paid</span>
+            <span>COD due: ₹{lead.codAmountDue ?? lead.total}</span>
+          </div>
+        ),
     },
     {
       key: 'promoCode',
@@ -178,7 +186,7 @@ export default function Leads() {
       <div className="page__header">
         <div className="page__header-text">
           <h2>Leads</h2>
-          <p>Customers who chose Cash on Delivery and entered their address but left without paying the ₹99 delivery charge.</p>
+          <p>Customers who entered their address but left without paying: online orders with payment Pending or Failed, and COD orders where the ₹99 delivery charge was not paid.</p>
         </div>
         <Button onClick={refresh} disabled={refreshing}>
           {refreshing ? 'Refreshing…' : 'Refresh'}

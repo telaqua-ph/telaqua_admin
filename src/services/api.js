@@ -309,8 +309,11 @@ export async function deleteLead(leadId) {
 
 export async function getLeads() {
   const data = await apiRequest('/api/orders/cod-advance/unpaid');
-  const list = Array.isArray(data?.checkouts) ? data.checkouts : [];
-  return list.map((c) => ({
+  const checkouts = Array.isArray(data?.checkouts) ? data.checkouts : [];
+  const onlineOrders = Array.isArray(data?.online_orders) ? data.online_orders : [];
+
+  // COD: customer filled the address but did not pay the ₹99 (no order exists).
+  const codLeads = checkouts.map((c) => ({
     ...normalizeOrder({
       id: `lead-${c.id}`,
       order_number: `LEAD-${c.id}`,
@@ -335,8 +338,21 @@ export async function getLeads() {
       updated_at: c.updated_at,
       is_seen: true,
     }),
+    leadType: 'cod',
     leadId: c.id,
   }));
+
+  // Online: Razorpay order created but the payment is still Pending or Failed.
+  const onlineLeads = onlineOrders.map((o) => ({
+    ...normalizeOrder({ ...o, is_seen: true }),
+    leadType: 'online',
+    leadId: `order-${o.id}`,
+    orderId: o.id,
+  }));
+
+  return [...codLeads, ...onlineLeads].sort(
+    (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+  );
 }
 
 export async function getDeletedOrders() {
