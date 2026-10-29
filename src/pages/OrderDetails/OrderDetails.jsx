@@ -15,6 +15,7 @@ import * as delhivery from '../../services/delhivery';
 import * as shipway from '../../services/shipway';
 import { Button } from '../../components/Buttons';
 import StatusBadge from '../../components/StatusBadge/StatusBadge';
+import { paymentModeLabel } from '../../utils/paymentModeLabel';
 import { Modal } from '../../components/Modal';
 import { DeliveryDetailsModal } from '../../components/DeliveryDetailsModal';
 import { deliveryEditStage } from '../../utils/deliveryDetails';
@@ -820,7 +821,7 @@ export default function OrderDetails() {
               </div>
               <div>
                 <span>Payment mode</span>
-                <strong>{order.paymentMode || '—'}</strong>
+                <strong>{paymentModeLabel(order.paymentMode)}</strong>
               </div>
               <div>
                 <span>Payment method</span>
@@ -858,7 +859,7 @@ export default function OrderDetails() {
             <div className="panel__body order-details__fields">
               <div>
                 <span>Payment mode</span>
-                <strong>{order.paymentMode || '—'}</strong>
+                <strong>{paymentModeLabel(order.paymentMode)}</strong>
               </div>
               <div>
                 <span>Payment method</span>

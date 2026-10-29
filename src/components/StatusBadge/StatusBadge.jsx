@@ -23,6 +23,7 @@ const statusMap = {
   'In Stock': 'delivered',
   Paid: 'payment-paid',
   paid: 'payment-paid',
+  'Partially Paid': 'confirmed',
   Failed: 'payment-failed',
   failed: 'payment-failed',
   Refunded: 'payment-refunded',
