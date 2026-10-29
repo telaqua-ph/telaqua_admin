@@ -7,9 +7,8 @@
 
 .stat-card {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  flex-direction: column;
+  gap: 12px;
   height: 100%;
   padding: 20px 22px;
   background: var(--color-bg);
@@ -54,12 +53,23 @@
   line-height: 1.1;
 }
 
+.stat-card__main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.stat-card__body {
+  min-width: 0;
+}
+
 .stat-card__footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-top: 12px;
+  margin-top: auto;
 }
 
 .stat-card__cta {

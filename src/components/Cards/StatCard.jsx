@@ -28,28 +28,30 @@ export default function StatCard({
     <article
       className={`stat-card stat-card--${accent}${to ? ' stat-card--clickable' : ''}`}
     >
-      <div className="stat-card__body">
-        <p className="stat-card__title">{title}</p>
-        <p className="stat-card__value">{value}</p>
-        {(to || onDownload) && (
-          <div className="stat-card__footer">
-            {to ? <span className="stat-card__cta">View list</span> : <span />}
-            {onDownload ? (
-              <button
-                type="button"
-                className="stat-card__download"
-                onClick={handleDownload}
-                title={downloadLabel}
-                aria-label={downloadLabel}
-              >
-                {downloadIcon}
-                <span>CSV</span>
-              </button>
-            ) : null}
-          </div>
-        )}
+      <div className="stat-card__main">
+        <div className="stat-card__body">
+          <p className="stat-card__title">{title}</p>
+          <p className="stat-card__value">{value}</p>
+        </div>
+        {icon && <div className="stat-card__icon">{icon}</div>}
       </div>
-      {icon && <div className="stat-card__icon">{icon}</div>}
+      {(to || onDownload) && (
+        <div className="stat-card__footer">
+          {to ? <span className="stat-card__cta">View list</span> : <span />}
+          {onDownload ? (
+            <button
+              type="button"
+              className="stat-card__download"
+              onClick={handleDownload}
+              title={downloadLabel}
+              aria-label={downloadLabel}
+            >
+              {downloadIcon}
+              <span>CSV</span>
+            </button>
+          ) : null}
+        </div>
+      )}
     </article>
   );
 
