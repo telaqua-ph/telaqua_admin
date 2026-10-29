@@ -4,7 +4,7 @@ import {
   createManualCodOrder,
   deleteOrder,
   getOrderById,
-  getOrdersWithUnpaidCod,
+  getOrders,
   exportOrders,
   markSelectedCodPaymentsPaid,
   getPaymentStatuses,
@@ -174,7 +174,7 @@ export default function Orders() {
   }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadOrders = async () => {
-    const data = await getOrdersWithUnpaidCod();
+    const data = await getOrders();
     setOrders(data);
     return data;
   };
@@ -182,7 +182,7 @@ export default function Orders() {
   // Delivery details edited elsewhere: reload rows in place (filters and page are kept).
   useEffect(() => {
     const onOrdersChanged = () => {
-      getOrdersWithUnpaidCod().then(setOrders).catch(() => {});
+      getOrders().then(setOrders).catch(() => {});
     };
     window.addEventListener('orders:changed', onOrdersChanged);
     return () => window.removeEventListener('orders:changed', onOrdersChanged);
@@ -194,7 +194,7 @@ export default function Orders() {
       setLoading(true);
       setError('');
       try {
-        const data = await getOrdersWithUnpaidCod();
+        const data = await getOrders();
         if (active) setOrders(data);
       } catch (err) {
         if (active && err.status !== 401) {
@@ -213,7 +213,6 @@ export default function Orders() {
     const q = search.trim().toLowerCase();
     let list = orders.filter((order) => {
       if (metricFilter) {
-        if (order.isUnpaidCodCheckout) return false;
         if (!filterOrdersByMetric([order], metricFilter).length) return false;
       } else {
         const matchesStatus =
@@ -325,7 +324,7 @@ export default function Orders() {
   ]);
 
   const currentPageIds = useMemo(
-    () => pageData.filter((o) => !o.isUnpaidCodCheckout).map((o) => orderKey(o)),
+    () => pageData.map((o) => orderKey(o)),
     [pageData]
   );
 
@@ -871,7 +870,7 @@ export default function Orders() {
           title="Select all orders on this page"
         />
       ),
-      render: (row) => row.isUnpaidCodCheckout ? null : (
+      render: (row) => (
         <input
           type="checkbox"
           className="orders__checkbox"
@@ -890,11 +889,6 @@ export default function Orders() {
           {!row.isSeen && <span className="orders__unread-dot" aria-hidden="true" />}
           <strong>{row.orderNumber || row.id}</strong>
           {!row.isSeen && <span className="orders__new-badge">NEW</span>}
-          {row.isUnpaidCodCheckout && (
-            <span className="orders__new-badge" title="Customer chose COD and filled the address but did not pay the ₹99">
-              ₹99 UNPAID
-            </span>
-          )}
         </div>
       ),
     },
@@ -984,7 +978,7 @@ export default function Orders() {
     {
       key: 'shipmentStatus',
       label: 'Shipment',
-      render: (row) => row.isUnpaidCodCheckout ? '—' : (
+      render: (row) => (
         <StatusBadge
           status={row.shipmentStatusDisplay || fulfillmentListLabel(row)}
         />
@@ -1008,7 +1002,7 @@ export default function Orders() {
     {
       key: 'actions',
       label: 'Action',
-      render: (row) => row.isUnpaidCodCheckout ? '—' : (
+      render: (row) => (
         <div className="orders__actions">
           <Link to={`/orders/${row.id}`}>
             <Button size="sm" variant="outline-primary" disabled={bulkBusy}>

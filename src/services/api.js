@@ -299,16 +299,16 @@ export async function getOrders() {
 }
 
 /**
- * COD checkouts where the customer entered the address but left without paying
- * the ₹99 advance. These are not orders (nothing to ship); they are read-only rows.
+ * Leads: COD checkouts where the customer entered the address but left without
+ * paying the ₹99 advance. These are not orders (nothing to ship).
  */
-export async function getUnpaidCodCheckouts() {
+export async function getLeads() {
   const data = await apiRequest('/api/orders/cod-advance/unpaid');
   const list = Array.isArray(data?.checkouts) ? data.checkouts : [];
   return list.map((c) => ({
     ...normalizeOrder({
-      id: `cod-unpaid-${c.id}`,
-      order_number: 'Not placed',
+      id: `lead-${c.id}`,
+      order_number: `LEAD-${c.id}`,
       customer_name: c.customer_name,
       phone: c.phone,
       email: c.email,
@@ -330,19 +330,8 @@ export async function getUnpaidCodCheckouts() {
       updated_at: c.updated_at,
       is_seen: true,
     }),
-    isUnpaidCodCheckout: true,
-    codCheckoutAttemptId: c.id,
+    leadId: c.id,
   }));
-}
-
-/** Real orders plus unpaid COD checkouts, for the Orders list only. */
-export async function getOrdersWithUnpaidCod() {
-  const [orders, unpaid] = await Promise.all([
-    getOrders(),
-    // The Orders page must still load if this list is unavailable.
-    getUnpaidCodCheckouts().catch(() => []),
-  ]);
-  return [...orders, ...unpaid];
 }
 
 export async function getDeletedOrders() {
