@@ -611,6 +611,7 @@ export async function getRevenueReport({ from, to }) {
     pendingCodRevenue: Number(data?.pendingCodRevenue || 0),
     razorpayRevenue: Number(data?.razorpayRevenue || 0),
     codRevenue: Number(data?.codRevenue || 0),
+    codAdvanceRevenue: Number(data?.codAdvanceRevenue || 0),
     daily: Array.isArray(data?.daily) ? data.daily.map((item) => ({
       date: item.date,
       amount: Number(item.amount || 0),

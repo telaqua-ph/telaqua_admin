@@ -127,7 +127,7 @@ export default function Revenue() {
         <div>
           <span>All-time Revenue Received</span>
           <strong>{allTime ? formatInr(allTime.revenueReceived) : '—'}</strong>
-          <small>Razorpay + explicitly paid COD, since launch</small>
+          <small>Razorpay + explicitly paid COD + ₹99 COD advances, since launch</small>
         </div>
         <div>
           <span>All-time Devices Sold</span>
@@ -154,9 +154,9 @@ export default function Revenue() {
       {error ? <div className="alert alert--error">{error}</div> : null}
       {loading ? <div className="loading-state">Loading revenue…</div> : report ? <>
         <section className="revenue__summary">
-          <article className="revenue__card revenue__card--received"><span>Revenue Received</span><strong>{formatInr(report.receivedRevenue)}</strong><small>Razorpay + explicitly paid COD</small></article>
+          <article className="revenue__card revenue__card--received"><span>Revenue Received</span><strong>{formatInr(report.receivedRevenue)}</strong><small>Razorpay + explicitly paid COD + ₹99 COD advances</small></article>
           <article className="revenue__card revenue__card--pending"><span>Pending COD Revenue</span><strong>{formatInr(report.pendingCodRevenue)}</strong><small>Confirmed COD orders still Pending</small></article>
-          <article className="revenue__card"><span>Razorpay received</span><strong>{formatInr(report.razorpayRevenue)}</strong><small>Paid online orders</small></article>
+          <article className="revenue__card"><span>Razorpay received</span><strong>{formatInr(report.razorpayRevenue)}</strong><small>Paid online orders{report.codAdvanceRevenue ? ` + ${formatInr(report.codAdvanceRevenue)} from ₹99 COD advances` : ''}</small></article>
           <article className="revenue__card"><span>COD received</span><strong>{formatInr(report.codRevenue)}</strong><small>COD marked Paid</small></article>
         </section>
 
