@@ -299,8 +299,8 @@ export async function getOrders() {
 }
 
 /**
- * Leads: COD checkouts where the customer entered the address but left without
- * paying the ₹99 advance. These are not orders (nothing to ship).
+ * Leads: customers who entered their checkout details but left without placing
+ * the order. These are not orders (nothing to ship).
  */
 /** Removes a lead from the Leads page (kept on record in the backend). */
 export async function deleteLead(leadId) {
@@ -312,7 +312,7 @@ export async function getLeads() {
   const checkouts = Array.isArray(data?.checkouts) ? data.checkouts : [];
   const onlineOrders = Array.isArray(data?.online_orders) ? data.online_orders : [];
 
-  // COD: customer filled the address but did not pay the ₹99 (no order exists).
+  // Checkout details saved but no order placed (no order exists).
   const codLeads = checkouts.map((c) => ({
     ...normalizeOrder({
       id: `lead-${c.id}`,
@@ -331,8 +331,6 @@ export async function getLeads() {
       payment_mode: 'cod',
       payment_status: 'Pending',
       order_status: 'pending',
-      cod_advance_fee: 99,
-      cod_advance_status: 'Not paid',
       cod_amount_due: c.product_amount,
       created_at: c.created_at,
       updated_at: c.updated_at,

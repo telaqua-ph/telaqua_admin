@@ -16,7 +16,7 @@ const whatsappLink = (phone) => {
 
 /**
  * Leads: unpaid checkouts, for follow-up only.
- *  - COD: customer filled in the address but did not pay the ₹99 advance (no order exists).
+ *  - Checkout: customer filled in their details but did not place the order (no order exists).
  *  - Online: Razorpay order created but the payment is still Pending or Failed.
  *    Once the payment succeeds the order leaves Leads and appears in Orders.
  */
@@ -135,8 +135,7 @@ export default function Leads() {
         ) : (
           <div className="orders__customer">
             <span>COD</span>
-            <span>Advance ₹99: Not paid</span>
-            <span>COD due: ₹{lead.codAmountDue ?? lead.total}</span>
+            <span>Order not placed</span>
           </div>
         ),
     },
@@ -186,7 +185,7 @@ export default function Leads() {
       <div className="page__header">
         <div className="page__header-text">
           <h2>Leads</h2>
-          <p>Customers who entered their address but left without paying: online orders with payment Pending or Failed, and COD orders where the ₹99 delivery charge was not paid.</p>
+          <p>Customers who entered their details but left without ordering: online orders with payment Pending or Failed, and checkouts where the order was not placed.</p>
         </div>
         <Button onClick={refresh} disabled={refreshing}>
           {refreshing ? 'Refreshing…' : 'Refresh'}
