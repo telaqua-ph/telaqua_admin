@@ -19,6 +19,7 @@ import { exportOrdersToXlsx } from '../../utils/exportOrdersXlsx';
 import { paymentModeLabel } from '../../utils/paymentModeLabel';
 import { deriveOrderConfirmationStatus } from '../../utils/orderConfirmationStatus';
 import { fulfillmentListLabel } from '../../utils/fulfillmentTimeline';
+import { trackingLinkFor } from '../../utils/trackingLink';
 import { DASHBOARD_METRICS, filterOrdersByMetric, isDevicesSoldInDateRange } from '../../utils/dashboardMetrics';
 import {
   isOrderCreatedInDateRange,
@@ -987,7 +988,19 @@ export default function Orders() {
     {
       key: 'waybill',
       label: 'AWB',
-      render: (row) => row.waybill || '—',
+      render: (row) =>
+        row.waybill ? (
+          <a
+            href={trackingLinkFor(row.waybill, row.shippingProvider)}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Open the customer tracking page"
+          >
+            {row.waybill}
+          </a>
+        ) : (
+          '—'
+        ),
     },
     {
       key: 'date',

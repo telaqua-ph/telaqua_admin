@@ -19,6 +19,7 @@ import { paymentModeLabel } from '../../utils/paymentModeLabel';
 import { Modal } from '../../components/Modal';
 import { DeliveryDetailsModal } from '../../components/DeliveryDetailsModal';
 import { deliveryEditStage } from '../../utils/deliveryDetails';
+import { trackingLinkFor } from '../../utils/trackingLink';
 import {
   canCreateShipment,
   extractLabelUrl,
@@ -84,6 +85,39 @@ export default function OrderDetails() {
   const [shipmentSuccess, setShipmentSuccess] = useState(null);
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
   const [copyMsg, setCopyMsg] = useState('');
+  const [trackingSendBusy, setTrackingSendBusy] = useState(false);
+
+  const showCopyMsg = (text) => {
+    setCopyMsg(text);
+    setTimeout(() => setCopyMsg(''), 4000);
+  };
+
+  const handleCopyTrackingLink = async () => {
+    const link = trackingLinkFor(order?.waybill, order?.shippingProvider);
+    if (!link) return;
+    try {
+      await navigator.clipboard.writeText(link);
+      showCopyMsg('Tracking link copied');
+    } catch {
+      showCopyMsg('Could not copy tracking link');
+    }
+  };
+
+  const handleSendTrackingWhatsApp = async () => {
+    if (!order?.waybill || trackingSendBusy) return;
+    if (!window.confirm(`Send the tracking link to ${order.customerName || 'the customer'} (${order.phone || 'no phone'}) on WhatsApp?`)) return;
+    setTrackingSendBusy(true);
+    try {
+      const result = await shipway.sendShipwayTrackingWhatsApp(order.id);
+      showCopyMsg(result?.message || 'Tracking link sent on WhatsApp.');
+      const tracking = await shipway.getShipwayOrderTracking(order.id).catch(() => null);
+      if (tracking) setShipwayTracking(tracking);
+    } catch (err) {
+      showCopyMsg(err?.message || 'Could not send the tracking link on WhatsApp.');
+    } finally {
+      setTrackingSendBusy(false);
+    }
+  };
 
   const handleCopyAwb = async () => {
     if (!order?.waybill) return;
@@ -951,16 +985,55 @@ export default function OrderDetails() {
                     {order.waybill || '—'}
                   </strong>
                   {order.waybill ? (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline-primary"
-                      onClick={handleCopyAwb}
-                    >
-                      Copy AWB
-                    </Button>
+                    <>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline-primary"
+                        onClick={handleCopyAwb}
+                      >
+                        Copy AWB
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline-primary"
+                        onClick={handleCopyTrackingLink}
+                      >
+                        Copy tracking link
+                      </Button>
+                      <a
+                        href={trackingLinkFor(order.waybill, order.shippingProvider)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Button type="button" size="sm" variant="outline-primary">
+                          Open tracker
+                        </Button>
+                      </a>
+                      {isShipwayShipment ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline-primary"
+                          onClick={handleSendTrackingWhatsApp}
+                          disabled={trackingSendBusy}
+                        >
+                          {trackingSendBusy ? 'Sending…' : 'Send on WhatsApp'}
+                        </Button>
+                      ) : null}
+                    </>
                   ) : null}
                 </div>
+                {isShipwayShipment && order.waybill && shipwayTracking ? (
+                  <p className="form-hint">
+                    {shipwayTracking.tracking_whatsapp?.status === 'sent'
+                      ? `Tracking WhatsApp sent${shipwayTracking.tracking_whatsapp.sent_at ? ` on ${new Date(shipwayTracking.tracking_whatsapp.sent_at).toLocaleString('en-IN')}` : ''}.`
+                      : shipwayTracking.tracking_whatsapp?.status === 'failed'
+                        ? `Tracking WhatsApp failed: ${shipwayTracking.tracking_whatsapp.last_error || 'unknown error'}`
+                        : 'Tracking WhatsApp not sent yet.'}
+                  </p>
+                ) : null}
                 {copyMsg ? (
                   <p className="form-hint order-details__copy-msg">{copyMsg}</p>
                 ) : null}
