@@ -13,6 +13,7 @@ import {
 } from '../../services/api';
 import * as delhivery from '../../services/delhivery';
 import * as shipway from '../../services/shipway';
+import * as indiaPost from '../../services/indiaPost';
 import { Button } from '../../components/Buttons';
 import StatusBadge from '../../components/StatusBadge/StatusBadge';
 import { paymentModeLabel } from '../../utils/paymentModeLabel';
@@ -85,6 +86,8 @@ export default function OrderDetails() {
   const [shipmentSuccess, setShipmentSuccess] = useState(null);
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
   const [copyMsg, setCopyMsg] = useState('');
+  const [indiaPostOpen, setIndiaPostOpen] = useState(false);
+  const [indiaPostForm, setIndiaPostForm] = useState({ manual: false, barcode: '', weight_grams: '' });
   const [trackingSendBusy, setTrackingSendBusy] = useState(false);
 
   const showCopyMsg = (text) => {
@@ -108,9 +111,13 @@ export default function OrderDetails() {
     if (!window.confirm(`Send the tracking link to ${order.customerName || 'the customer'} (${order.phone || 'no phone'}) on WhatsApp?`)) return;
     setTrackingSendBusy(true);
     try {
-      const result = await shipway.sendShipwayTrackingWhatsApp(order.id);
+      const result = isIndiaPostShipment
+        ? await indiaPost.sendIndiaPostTrackingWhatsApp(order.id)
+        : await shipway.sendShipwayTrackingWhatsApp(order.id);
       showCopyMsg(result?.message || 'Tracking link sent on WhatsApp.');
-      const tracking = await shipway.getShipwayOrderTracking(order.id).catch(() => null);
+      const tracking = await (isIndiaPostShipment
+        ? indiaPost.getIndiaPostOrderTracking(order.id)
+        : shipway.getShipwayOrderTracking(order.id)).catch(() => null);
       if (tracking) setShipwayTracking(tracking);
     } catch (err) {
       showCopyMsg(err?.message || 'Could not send the tracking link on WhatsApp.');
@@ -161,8 +168,11 @@ export default function OrderDetails() {
     ]);
     setOrder(data);
     setTrackingHistory(Array.isArray(logistics?.tracking_history) ? logistics.tracking_history : []);
-    if (String(data?.shippingProvider || '').toLowerCase() === 'shipway') {
-      const tracking = await shipway.getShipwayOrderTracking(id).catch(() => null);
+    const provider = String(data?.shippingProvider || '').toLowerCase();
+    if (provider === 'shipway' || provider === 'indiapost') {
+      const tracking = await (provider === 'indiapost'
+        ? indiaPost.getIndiaPostOrderTracking(id)
+        : shipway.getShipwayOrderTracking(id)).catch(() => null);
       if (tracking) {
         setShipwayTracking(tracking);
         setTrackingHistory(Array.isArray(tracking.tracking_history) ? tracking.tracking_history : []);
@@ -209,8 +219,11 @@ export default function OrderDetails() {
         }
         setOrder(data);
         setTrackingHistory(Array.isArray(logistics?.tracking_history) ? logistics.tracking_history : []);
-        if (String(data?.shippingProvider || '').toLowerCase() === 'shipway') {
-          const tracking = await shipway.getShipwayOrderTracking(id).catch(() => null);
+        const provider = String(data?.shippingProvider || '').toLowerCase();
+        if (provider === 'shipway' || provider === 'indiapost') {
+          const tracking = await (provider === 'indiapost'
+            ? indiaPost.getIndiaPostOrderTracking(id)
+            : shipway.getShipwayOrderTracking(id)).catch(() => null);
           if (!active) return;
           if (tracking) {
             setShipwayTracking(tracking);
@@ -240,6 +253,9 @@ export default function OrderDetails() {
   const shipmentReady = isShipmentCreated(order);
   const waybillReady = hasWaybill(order);
   const isShipwayShipment = String(order?.shippingProvider || '').toLowerCase() === 'shipway';
+  const isIndiaPostShipment = String(order?.shippingProvider || '').toLowerCase() === 'indiapost';
+  // Shipway and India Post shipments are managed outside Delhivery (no Delhivery pickup/update/NDR).
+  const isManagedShipment = isShipwayShipment || isIndiaPostShipment;
   const createAllowed = canCreateShipment(order);
   const canCollectCod =
     isCodOrder(order) &&
@@ -496,17 +512,19 @@ export default function OrderDetails() {
   };
 
   const handleRefreshTracking = async () => {
-    if (actionLoading === 'tracking' || (!isShipwayShipment && !order?.waybill)) return;
+    if (actionLoading === 'tracking' || (!isManagedShipment && !order?.waybill)) return;
     const result = await runAction(
       'tracking',
-      () => isShipwayShipment
-        ? shipway.refreshShipwayOrderTracking(order.id)
-        : delhivery.getTracking(order.waybill, { order_id: Number(order.id) || order.id }),
-      isShipwayShipment ? 'Shipway tracking refreshed.' : 'Tracking refreshed.'
+      () => isIndiaPostShipment
+        ? indiaPost.refreshIndiaPostOrderTracking(order.id)
+        : isShipwayShipment
+          ? shipway.refreshShipwayOrderTracking(order.id)
+          : delhivery.getTracking(order.waybill, { order_id: Number(order.id) || order.id }),
+      isIndiaPostShipment ? 'India Post tracking refreshed.' : isShipwayShipment ? 'Shipway tracking refreshed.' : 'Tracking refreshed.'
     );
     if (result) {
       setTrackingPayload(result);
-      if (isShipwayShipment) {
+      if (isManagedShipment) {
         setShipwayTracking(result);
         setTrackingHistory(Array.isArray(result.tracking_history) ? result.tracking_history : []);
       }
@@ -670,7 +688,21 @@ export default function OrderDetails() {
       : extractTrackingEvents(trackingPayload),
     [trackingHistory, trackingPayload]
   );
-  const latestTracking = isShipwayShipment ? shipwayTracking : null;
+  const latestTracking = isManagedShipment ? shipwayTracking : null;
+
+  const handleCreateIndiaPostShipment = async () => {
+    if (actionLoading === 'indiapost') return;
+    const body = { manual: indiaPostForm.manual };
+    const barcode = indiaPostForm.barcode.replace(/\s+/g, '').toUpperCase();
+    if (barcode) body.barcode = barcode;
+    if (Number(indiaPostForm.weight_grams) > 0) body.weight_grams = Number(indiaPostForm.weight_grams);
+    const result = await runAction('indiapost', () => indiaPost.createIndiaPostShipment(order.id, body));
+    if (result) {
+      setMessage(result.message || `India Post article ${result.waybill} saved.`);
+      setIndiaPostOpen(false);
+      setIndiaPostForm({ manual: false, barcode: '', weight_grams: '' });
+    }
+  };
   const isDelivered =
     String(order?.trackingStatus || '')
       .toLowerCase()
@@ -1011,7 +1043,7 @@ export default function OrderDetails() {
                           Open tracker
                         </Button>
                       </a>
-                      {isShipwayShipment ? (
+                      {isManagedShipment ? (
                         <Button
                           type="button"
                           size="sm"
@@ -1025,7 +1057,7 @@ export default function OrderDetails() {
                     </>
                   ) : null}
                 </div>
-                {isShipwayShipment && order.waybill && shipwayTracking ? (
+                {isManagedShipment && order.waybill && shipwayTracking ? (
                   <p className="form-hint">
                     {shipwayTracking.tracking_whatsapp?.status === 'sent'
                       ? `Tracking WhatsApp sent${shipwayTracking.tracking_whatsapp.sent_at ? ` on ${new Date(shipwayTracking.tracking_whatsapp.sent_at).toLocaleString('en-IN')}` : ''}.`
@@ -1118,7 +1150,7 @@ export default function OrderDetails() {
                   <span>AWB</span>
                   <strong>{order.waybill || '—'}</strong>
                 </div>
-                {isShipwayShipment && (
+                {isManagedShipment && (
                   <>
                     <div><span>Carrier</span><strong>{latestTracking?.courier_name || 'Not Available'}</strong></div>
                     <div><span>Status Code</span><strong>{latestTracking?.shipment_status_code || '—'}</strong></div>
@@ -1171,14 +1203,14 @@ export default function OrderDetails() {
               </div>
             )}
 
-            {isShipwayShipment && trackingEvents.length === 0 && (
+            {isManagedShipment && trackingEvents.length === 0 && (
               <div className="panel__body order-details__tracking-raw">
                 <h4>Tracking events</h4>
-                <p className="form-hint">No Shipway tracking events are available yet. Refresh tracking after the courier has scanned the shipment.</p>
+                <p className="form-hint">No {isIndiaPostShipment ? 'India Post' : 'Shipway'} tracking events are available yet. Refresh tracking after the courier has scanned the shipment.</p>
               </div>
             )}
 
-            {!isShipwayShipment && trackingPayload && trackingEvents.length === 0 && (
+            {!isManagedShipment && trackingPayload && trackingEvents.length === 0 && (
               <div className="panel__body order-details__tracking-raw">
                 <h4>Latest tracking response</h4>
                 <pre>{JSON.stringify(trackingPayload, null, 2)}</pre>
@@ -1405,10 +1437,24 @@ export default function OrderDetails() {
               {createAllowed && !shipmentReady && (
                 <p className="form-hint">Creates the Shipway shipment and label together.</p>
               )}
+              {!shipmentReady && (
+                <Button
+                  variant="outline-primary"
+                  disabled={busy || !createAllowed || actionLoading === 'indiapost'}
+                  onClick={() => setIndiaPostOpen(true)}
+                >
+                  {actionLoading === 'indiapost' ? 'Booking India Post…' : 'Ship with India Post'}
+                </Button>
+              )}
 
               {shipmentReady && waybillReady && (
                 <>
                   {isShipwayShipment && <p className="form-hint">Ready to Ship — Shipway label generated.</p>}
+                  {isIndiaPostShipment && (
+                    <p className="form-hint">
+                      India Post Speed Post — article <strong>{order.waybill}</strong>. Hand the parcel over at the post office.
+                    </p>
+                  )}
                   {!isDelivered && (
                     <>
                       {labelReady && (
@@ -1446,7 +1492,7 @@ export default function OrderDetails() {
                         </>
                       )}
 
-                      {!isShipwayShipment && (
+                      {!isManagedShipment && (
                         <Button
                         variant="secondary"
                         disabled={
@@ -1471,10 +1517,10 @@ export default function OrderDetails() {
                   >
                     {actionLoading === 'tracking'
                       ? 'Refreshing…'
-                      : isShipwayShipment ? 'Refresh Shipway Tracking' : 'Track Shipment'}
+                      : isIndiaPostShipment ? 'Refresh India Post Tracking' : isShipwayShipment ? 'Refresh Shipway Tracking' : 'Track Shipment'}
                   </Button>
 
-                  {!isDelivered && !isShipwayShipment && (
+                  {!isDelivered && !isManagedShipment && (
                     <Button
                       variant="secondary"
                       disabled={busy}
@@ -1486,7 +1532,7 @@ export default function OrderDetails() {
                 </>
               )}
 
-              {showNdr && !isDelivered && !isShipwayShipment && (
+              {showNdr && !isDelivered && !isManagedShipment && (
                 <div className="order-details__ndr">
                   <h4>⚠ Delivery Exception / NDR</h4>
                   <p className="form-hint">
@@ -1506,6 +1552,73 @@ export default function OrderDetails() {
           </section>
         </aside>
       </div>
+
+      {/* India Post shipment */}
+      <Modal
+        open={indiaPostOpen}
+        title={`Ship ${order.orderNumber} with India Post`}
+        onClose={() => actionLoading !== 'indiapost' && setIndiaPostOpen(false)}
+        footer={
+          <>
+            <Button variant="secondary" disabled={actionLoading === 'indiapost'} onClick={() => setIndiaPostOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={actionLoading === 'indiapost' || (indiaPostForm.manual && !indiaPostForm.barcode.trim())}
+              onClick={handleCreateIndiaPostShipment}
+            >
+              {actionLoading === 'indiapost'
+                ? 'Saving…'
+                : indiaPostForm.manual ? 'Save Article Number' : 'Book with India Post'}
+            </Button>
+          </>
+        }
+      >
+        <div className="order-details__stack">
+          <div>
+            <span>Customer</span>
+            <strong>{order.customerName} · {order.phone}</strong>
+          </div>
+          <div>
+            <span>Deliver to</span>
+            <strong>{order.fullAddress || order.address || '—'}</strong>
+          </div>
+          <label className="form-group">
+            <span>
+              <input
+                type="checkbox"
+                checked={indiaPostForm.manual}
+                onChange={(e) => setIndiaPostForm((f) => ({ ...f, manual: e.target.checked }))}
+              />{' '}
+              Already booked at the post office counter (just save the article number)
+            </span>
+          </label>
+          <label className="form-group">
+            <span>Article number {indiaPostForm.manual ? '(required)' : '(optional, if India Post gave you pre-printed barcodes)'}</span>
+            <input
+              type="text"
+              placeholder="EB123456789IN"
+              value={indiaPostForm.barcode}
+              onChange={(e) => setIndiaPostForm((f) => ({ ...f, barcode: e.target.value }))}
+            />
+          </label>
+          {!indiaPostForm.manual && (
+            <label className="form-group">
+              <span>Parcel weight in grams (optional, default from settings)</span>
+              <input
+                type="number"
+                min="1"
+                placeholder="300"
+                value={indiaPostForm.weight_grams}
+                onChange={(e) => setIndiaPostForm((f) => ({ ...f, weight_grams: e.target.value }))}
+              />
+            </label>
+          )}
+          <p className="form-hint">
+            The customer gets the "Dispatched" WhatsApp with the Track button once the article number is saved.
+          </p>
+        </div>
+      </Modal>
 
       {/* Confirm shipment */}
       <Modal
