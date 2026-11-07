@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   deleteOrder,
@@ -42,6 +42,20 @@ const NO_RESPONSE_SHIPMENT_REASON =
   'It may already be booked in Shipway. Press Retry on Wi-Fi: it checks Shipway first and never books twice.';
 
 const PAGE_SIZE = 10;
+const PAID_OFFLINE_SOLD = new Set(['cod paid-cash', 'cod paid-qr']);
+
+function isPaidOfflineSold(order) {
+  return PAID_OFFLINE_SOLD.has(String(order?.offlineSold || '').trim().toLowerCase());
+}
+
+/** Add COD Order from this page: pending, and not an Offline Sold cash or QR sale. */
+function isOrdersPagePendingCod(order) {
+  const offline = String(order?.offlineSold || '').trim().toLowerCase();
+  if (offline === 'cod pending') return true;
+  const channel = String(order?.order_channel || order?.orderChannel || '').trim().toLowerCase();
+  const payment = String(order?.paymentStatus || '').trim().toLowerCase();
+  return channel === 'admin' && !offline && payment === 'pending';
+}
 
 const ORDER_CONFIRMATION_FILTERS = ['New', 'Confirmed', 'Cancelled'];
 const SALES_METRICS = new Set([
@@ -189,6 +203,7 @@ export default function Orders() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     let list = orders.filter((order) => {
+      if (isPaidOfflineSold(order)) return false;
       if (metricFilter) {
         if (!filterOrdersByMetric([order], metricFilter).length) return false;
       } else {
@@ -815,16 +830,17 @@ export default function Orders() {
     {
       key: 'paymentStatus',
       label: 'Payment',
-      render: (row) => (
+      render: (row) => {
+        const pendingCod = isOrdersPagePendingCod(row);
+        const paymentLabel = pendingCod
+          ? 'Pending COD'
+          : row.codAdvanceStatus === 'paid' && String(row.paymentStatus || '').toLowerCase() === 'pending'
+            ? 'Partially Paid'
+            : row.paymentStatusLabel || row.paymentStatus || '—';
+        return (
         <div className="orders__customer">
-          <StatusBadge
-            status={
-              row.codAdvanceStatus === 'paid' && String(row.paymentStatus || '').toLowerCase() === 'pending'
-                ? 'Partially Paid'
-                : row.paymentStatusLabel || row.paymentStatus || '—'
-            }
-          />
-          {row.paymentMethod && row.paymentMethod !== (row.paymentStatusLabel || row.paymentStatus) ? (
+          <StatusBadge status={paymentLabel} />
+          {!pendingCod && row.paymentMethod && row.paymentMethod !== (row.paymentStatusLabel || row.paymentStatus) ? (
             <span>{row.paymentMethod}</span>
           ) : null}
           {row.paymentId ? (
@@ -835,7 +851,8 @@ export default function Orders() {
             <span>ID: —</span>
           )}
         </div>
-      ),
+        );
+      },
     },
     {
       key: 'paymentMode',

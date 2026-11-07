@@ -29,6 +29,8 @@ const statusMap = {
   'cod paid': 'payment-paid',
   'COD Pending': 'payment-pending',
   'cod pending': 'payment-pending',
+  'Pending COD': 'payment-pending',
+  'pending cod': 'payment-pending',
   'COD Paid-Cash': 'payment-paid',
   'cod paid-cash': 'payment-paid',
   'COD Paid-QR': 'payment-paid',
