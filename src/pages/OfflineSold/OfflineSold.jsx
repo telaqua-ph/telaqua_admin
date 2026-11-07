@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getOrders } from '../../services/api';
+import { deleteOrder, getOrders } from '../../services/api';
 import { DataTable } from '../../components/Tables';
 import { Button } from '../../components/Buttons';
 import AddCodOrderButton from '../../components/AddCodOrder/AddCodOrderButton';
@@ -44,6 +44,21 @@ export default function OfflineSold() {
     setRefreshing(true);
     await load();
     setRefreshing(false);
+  };
+
+  const handleDelete = async (order) => {
+    const label = order.orderNumber || order.id;
+    if (!window.confirm(`Delete order "${label}"? This cannot be undone.`)) {
+      return;
+    }
+    try {
+      await deleteOrder(order.id);
+      await load();
+      setMessage(`Order ${label} deleted.`);
+      setError('');
+    } catch (err) {
+      if (err.status !== 401) setError(err.message || 'Failed to delete order');
+    }
   };
 
   const filtered = useMemo(() => {
@@ -141,6 +156,22 @@ export default function OfflineSold() {
       key: 'waybill',
       label: 'AWB',
       render: (row) => row.waybill || '—',
+    },
+    {
+      key: 'actions',
+      label: 'Action',
+      render: (row) => (
+        <div className="orders__actions">
+          <Link to={`/orders/${row.id}`}>
+            <Button size="sm" variant="outline-primary">
+              View
+            </Button>
+          </Link>
+          <Button size="sm" variant="danger" onClick={() => handleDelete(row)}>
+            Delete
+          </Button>
+        </div>
+      ),
     },
   ];
 
