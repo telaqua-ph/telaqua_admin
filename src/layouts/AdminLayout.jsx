@@ -7,6 +7,7 @@ import './AdminLayout.css';
 const titles = {
   '/': 'Dashboard',
   '/orders': 'Orders',
+  '/offline-sold': 'Offline Sold',
   '/leads': 'Leads',
   '/inventory': 'Inventory',
   '/promo-codes': 'Discounts',

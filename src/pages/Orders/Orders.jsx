@@ -87,6 +87,8 @@ function isPaymentBlocked(order) {
   return pay === 'pending' || pay === 'failed';
 }
 
+const OFFLINE_SOLD_OPTIONS = ['COD Pending', 'COD Paid-Cash', 'COD Paid-QR'];
+
 const emptyCodForm = {
   customer_name: '',
   phone: '',
@@ -99,6 +101,7 @@ const emptyCodForm = {
   unit_price: '',
   total_amount: '',
   promo_code: '',
+  offline_sold: 'COD Pending',
 };
 
 export default function Orders() {
@@ -221,8 +224,12 @@ export default function Orders() {
         if (!matchesStatus) return false;
       }
 
+      const shownPayment = String(order.paymentStatusLabel || order.paymentStatus || '');
       const matchesPayment =
-        paymentFilter === 'All' || order.paymentStatus === paymentFilter;
+        paymentFilter === 'All' ||
+        shownPayment === paymentFilter ||
+        order.paymentStatus === paymentFilter ||
+        (paymentFilter === 'Paid' && (shownPayment === 'Offline Paid' || shownPayment === 'COD Paid'));
       const matchesPaymentMode =
         paymentModeFilter === 'All' ||
         (paymentModeFilter === 'COD Advance'
@@ -484,6 +491,7 @@ export default function Orders() {
         unit_price: Number(codForm.unit_price),
         total_amount: Number(codForm.total_amount),
         promo_code: String(codForm.promo_code || '').trim().toUpperCase() || undefined,
+        offline_sold: codForm.offline_sold,
       });
       setCodOpen(false);
       setCodForm(emptyCodForm);
@@ -930,10 +938,12 @@ export default function Orders() {
             status={
               row.codAdvanceStatus === 'paid' && String(row.paymentStatus || '').toLowerCase() === 'pending'
                 ? 'Partially Paid'
-                : row.paymentStatus || '—'
+                : row.paymentStatusLabel || row.paymentStatus || '—'
             }
           />
-          <span>{row.paymentMethod || '—'}</span>
+          {row.paymentMethod && row.paymentMethod !== (row.paymentStatusLabel || row.paymentStatus) ? (
+            <span>{row.paymentMethod}</span>
+          ) : null}
           {row.paymentId ? (
             <span className="orders__payment-id" title={row.paymentId}>
               ID: {row.paymentId}
@@ -1443,6 +1453,19 @@ export default function Orders() {
           <div className="form-group form-group--full">
             <span>Product</span>
             <strong>Tel-Aqua Product</strong>
+          </div>
+          <div className="form-group form-group--full">
+            <label htmlFor="cod-offline-sold">Offline Sold</label>
+            <select
+              id="cod-offline-sold"
+              value={codForm.offline_sold}
+              onChange={(e) => updateCodField('offline_sold', e.target.value)}
+              required
+            >
+              {OFFLINE_SOLD_OPTIONS.map((option) => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
           </div>
           <div className="form-group">
             <label htmlFor="cod-name">Customer Name</label>

@@ -464,7 +464,12 @@ export default function Dashboard() {
     {
       key: 'paymentStatus',
       label: 'Payment',
-      render: (row) => <StatusBadge status={row.paymentStatus} />,
+      render: (row) => (
+        <div>
+          <StatusBadge status={row.paymentStatusLabel || row.paymentStatus} />
+          {row.paymentStatusLabel === 'COD Paid' ? <div>Offline Paid</div> : null}
+        </div>
+      ),
     },
     {
       key: 'shipmentStatus',

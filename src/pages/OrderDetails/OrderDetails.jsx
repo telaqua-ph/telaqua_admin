@@ -737,7 +737,7 @@ export default function OrderDetails() {
           <h2>{order.orderNumber}</h2>
           <p>
             Placed {order.date} · <StatusBadge status={order.status} /> ·{' '}
-            <StatusBadge status={order.paymentStatus} />
+            <StatusBadge status={order.paymentStatusLabel || order.paymentStatus} />
           </p>
         </div>
         <div className="order-details__header-actions">
@@ -882,7 +882,7 @@ export default function OrderDetails() {
               <div>
                 <span>Payment status</span>
                 <strong>
-                  <StatusBadge status={order.paymentStatus} />
+                  <StatusBadge status={order.paymentStatusLabel || order.paymentStatus} />
                 </strong>
               </div>
               <div>
@@ -934,7 +934,7 @@ export default function OrderDetails() {
               <div>
                 <span>Payment status</span>
                 <strong>
-                  <StatusBadge status={order.paymentStatus} />
+                  <StatusBadge status={order.paymentStatusLabel || order.paymentStatus} />
                 </strong>
               </div>
               <div>
@@ -965,7 +965,7 @@ export default function OrderDetails() {
                   <div>
                     <span>COD collection status</span>
                     <strong>
-                      <StatusBadge status={order.paymentStatus} />
+                      <StatusBadge status={order.paymentStatusLabel || order.paymentStatus} />
                     </strong>
                   </div>
                   <div>

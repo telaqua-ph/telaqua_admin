@@ -11,7 +11,8 @@ import {
 import { isCodOrder } from './shipmentHelpers.js';
 
 function isPaid(order) {
-  return String(order?.paymentStatus || order?.payment_status || '').toLowerCase() === 'paid';
+  const status = String(order?.paymentStatus || order?.payment_status || '').toLowerCase();
+  return status === 'paid' || status === 'offline paid' || status === 'cod paid';
 }
 
 function isPending(order) {

@@ -65,9 +65,9 @@ export function canCreateShipment(order) {
 
   const pay = String(order.paymentStatus || order.payment_status || '').toLowerCase();
   if (isCodOrder(order)) {
-    return pay === 'pending' || pay === 'paid';
+    return pay === 'pending' || pay === 'paid' || pay === 'offline paid' || pay === 'cod paid';
   }
-  return pay === 'paid';
+  return pay === 'paid' || pay === 'offline paid' || pay === 'cod paid';
 }
 
 export function looksLikeNdr(order) {

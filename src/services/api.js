@@ -167,6 +167,22 @@ function isCancellationFlag(value) {
   return value === true || value === 1 || String(value || '').trim().toLowerCase() === 'true';
 }
 
+function storedPaymentStatus(order) {
+  const status = String(order?.payment_status || order?.paymentStatus || '').trim();
+  if (['offline paid', 'cod paid'].includes(status.toLowerCase())) return 'Paid';
+  return status || 'Pending';
+}
+
+function storedPaymentMethod(order) {
+  const method = String(order?.payment_method || order?.paymentMethod || '').trim();
+  if (method.toLowerCase() === 'offline paid') return 'cod';
+  return method || '—';
+}
+
+function storedOfflineSold(order) {
+  return String(order?.offline_sold || order?.offlineSold || '').trim();
+}
+
 /** Normalize API snake_case order into UI-friendly fields. */
 export function normalizeOrder(order) {
   if (!order) return null;
@@ -202,7 +218,7 @@ export function normalizeOrder(order) {
     discountAmount: Number(
       order.discount_amount ?? order.discountAmount ?? 0
     ) || 0,
-    paymentMethod: order.payment_method || order.paymentMethod || '—',
+    paymentMethod: storedPaymentMethod(order),
     paymentMode: displayPaymentMode(order),
     // ₹99 non-refundable COD advance delivery fee (null for orders placed without it).
     hasCodAdvance: Boolean(order.cod_advance_status),
@@ -212,7 +228,9 @@ export function normalizeOrder(order) {
     codAdvanceVerifiedAt: order.cod_advance_verified_at || null,
     codAmountDue: order.cod_amount_due == null ? null : Number(order.cod_amount_due),
     codFeeAcceptedAt: order.cod_fee_declaration_accepted_at || null,
-    paymentStatus: order.payment_status || order.paymentStatus || 'Pending',
+    paymentStatus: storedPaymentStatus(order),
+    paymentStatusLabel: storedPaymentStatus(order),
+    offlineSold: storedOfflineSold(order),
     paymentDate: order.payment_date || order.paymentDate || order.created_at || order.date || null,
     orderConfirmationStatus: deriveOrderConfirmationStatus(order),
     paymentId:

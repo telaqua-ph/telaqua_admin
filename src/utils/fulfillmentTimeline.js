@@ -19,7 +19,8 @@ function hasNonEmpty(value) {
 }
 
 function isPaid(paymentStatus) {
-  return lower(paymentStatus) === 'paid';
+  const status = lower(paymentStatus);
+  return status === 'paid' || status === 'offline paid' || status === 'cod paid';
 }
 
 function isShipmentCreatedSuccess(shipmentStatus) {
