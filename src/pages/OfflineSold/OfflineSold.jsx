@@ -12,10 +12,14 @@ import '../Orders/Orders.css';
 
 const PAGE_SIZE = 10;
 const OFFLINE_SOLD_TYPES = new Set(['cod paid-cash', 'cod paid-qr']);
+/** Orders already on this list before the move stay on Orders only. */
+const OFFLINE_SOLD_MOVED_BEFORE = Date.parse('2026-11-07T08:23:00.000Z');
 
-/** Paid cash and QR sales only. Pending COD stays on the Orders page. */
+/** Cash and QR sales added after the existing list was moved to Orders. */
 function isOfflineSoldOrder(order) {
-  return OFFLINE_SOLD_TYPES.has(String(order?.offlineSold || '').trim().toLowerCase());
+  if (!OFFLINE_SOLD_TYPES.has(String(order?.offlineSold || '').trim().toLowerCase())) return false;
+  const created = Date.parse(order?.createdAt || order?.created_at || '');
+  return Number.isFinite(created) && created >= OFFLINE_SOLD_MOVED_BEFORE;
 }
 export default function OfflineSold() {
   const [orders, setOrders] = useState([]);
@@ -224,7 +228,7 @@ export default function OfflineSold() {
         <DataTable
           columns={columns}
           data={visible}
-          emptyMessage="No offline sold orders yet. Add one from Orders → Add COD Order."
+          emptyMessage="No offline sold orders yet. Add one with Add COD Order."
         />
         {filtered.length > PAGE_SIZE && (
           <div className="orders__table-pagination">

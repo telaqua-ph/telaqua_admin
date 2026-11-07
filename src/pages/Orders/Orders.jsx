@@ -42,11 +42,6 @@ const NO_RESPONSE_SHIPMENT_REASON =
   'It may already be booked in Shipway. Press Retry on Wi-Fi: it checks Shipway first and never books twice.';
 
 const PAGE_SIZE = 10;
-const PAID_OFFLINE_SOLD = new Set(['cod paid-cash', 'cod paid-qr']);
-
-function isPaidOfflineSold(order) {
-  return PAID_OFFLINE_SOLD.has(String(order?.offlineSold || '').trim().toLowerCase());
-}
 
 /** Add COD Order from this page: pending, and not an Offline Sold cash or QR sale. */
 function isOrdersPagePendingCod(order) {
@@ -203,7 +198,6 @@ export default function Orders() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     let list = orders.filter((order) => {
-      if (isPaidOfflineSold(order)) return false;
       if (metricFilter) {
         if (!filterOrdersByMetric([order], metricFilter).length) return false;
       } else {
