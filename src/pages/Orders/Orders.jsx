@@ -1,19 +1,17 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
-  createManualCodOrder,
   deleteOrder,
   getOrderById,
   getOrders,
   exportOrders,
   markSelectedCodPaymentsPaid,
   getPaymentStatuses,
-  validatePromoCode,
 } from '../../services/api';
 import * as delhivery from '../../services/delhivery';
 import { DataTable } from '../../components/Tables';
 import { Button } from '../../components/Buttons';
-import { Modal } from '../../components/Modal';
+import AddCodOrderButton from '../../components/AddCodOrder/AddCodOrderButton';
 import StatusBadge from '../../components/StatusBadge/StatusBadge';
 import { exportOrdersToXlsx } from '../../utils/exportOrdersXlsx';
 import { paymentModeLabel } from '../../utils/paymentModeLabel';
@@ -87,23 +85,6 @@ function isPaymentBlocked(order) {
   return pay === 'pending' || pay === 'failed';
 }
 
-const OFFLINE_SOLD_OPTIONS = ['COD Paid-Cash', 'COD Paid-QR'];
-
-const emptyCodForm = {
-  customer_name: '',
-  phone: '',
-  email: '',
-  address: '',
-  city: '',
-  state: '',
-  pincode: '',
-  quantity: '1',
-  unit_price: '',
-  total_amount: '',
-  promo_code: '',
-  offline_sold: 'COD Paid-Cash',
-};
-
 export default function Orders() {
   const [searchParams] = useSearchParams();
   const [orders, setOrders] = useState([]);
@@ -128,14 +109,6 @@ export default function Orders() {
   const [bulkProgress, setBulkProgress] = useState(null);
   const [bulkResult, setBulkResult] = useState(null);
   const [codPaymentResult, setCodPaymentResult] = useState(null);
-
-  const [codOpen, setCodOpen] = useState(false);
-  const [codForm, setCodForm] = useState(emptyCodForm);
-  const [codSaving, setCodSaving] = useState(false);
-  const [codError, setCodError] = useState('');
-  const [codPromo, setCodPromo] = useState(null);
-  const [codPromoError, setCodPromoError] = useState('');
-  const [codPromoChecking, setCodPromoChecking] = useState(false);
 
   const selectAllRef = useRef(null);
 
@@ -411,107 +384,17 @@ export default function Orders() {
     setCodPaymentResult(null);
   };
 
-  const openCodModal = () => {
-    setCodForm(emptyCodForm);
-    setCodError('');
-    setCodPromo(null);
-    setCodPromoError('');
-    setCodOpen(true);
-  };
-
-  const updateCodPromoCode = (value) => {
-    setCodForm((prev) => ({ ...prev, promo_code: value }));
-    // Editing the code invalidates a previously applied coupon.
-    if (codPromo) setCodPromo(null);
-    setCodPromoError('');
-  };
-
-  const handleApplyCodPromo = async () => {
-    const code = String(codForm.promo_code || '').trim().toUpperCase();
-    if (!code || codPromoChecking) return;
-    setCodPromoChecking(true);
-    setCodPromoError('');
-    try {
-      const promo = await validatePromoCode(code);
-      if (!promo) throw new Error('Invalid or inactive promo code');
-      setCodPromo(promo);
-      setCodForm((prev) => {
-        const qty = Number(prev.quantity);
-        const next = { ...prev, promo_code: promo.code, unit_price: String(promo.promo_price) };
-        if (Number.isFinite(qty) && qty > 0) {
-          next.total_amount = String(Number((qty * promo.promo_price).toFixed(2)));
-        }
-        return next;
-      });
-    } catch (err) {
-      setCodPromo(null);
-      if (err.status !== 401) {
-        setCodPromoError(err.message || 'Invalid or inactive promo code');
-      }
-    } finally {
-      setCodPromoChecking(false);
+  const handleCodOrderCreated = async (created) => {
+    const list = await loadOrders();
+    if (created?.id) {
+      const found = (list || []).find((o) => String(o.id) === String(created.id));
+      setMessage(
+        `COD order ${found?.orderNumber || created.orderNumber || created.id} created.`
+      );
+    } else {
+      setMessage('COD order created.');
     }
-  };
-
-  const removeCodPromo = () => {
-    setCodPromo(null);
-    setCodPromoError('');
-    setCodForm((prev) => ({ ...prev, promo_code: '' }));
-  };
-
-  const updateCodField = (name, value) => {
-    setCodForm((prev) => {
-      const next = { ...prev, [name]: value };
-      if (name === 'quantity' || name === 'unit_price') {
-        const qty = Number(name === 'quantity' ? value : next.quantity);
-        const unit = Number(name === 'unit_price' ? value : next.unit_price);
-        if (Number.isFinite(qty) && Number.isFinite(unit) && qty > 0 && unit > 0) {
-          next.total_amount = String(Number((qty * unit).toFixed(2)));
-        }
-      }
-      return next;
-    });
-  };
-
-  const handleCreateCodOrder = async (e) => {
-    e.preventDefault();
-    if (codSaving) return;
-    setCodSaving(true);
-    setCodError('');
-    try {
-      const created = await createManualCodOrder({
-        customer_name: String(codForm.customer_name || '').trim(),
-        phone: String(codForm.phone || '').trim(),
-        email: String(codForm.email || '').trim(),
-        address: String(codForm.address || '').trim(),
-        city: String(codForm.city || '').trim(),
-        state: String(codForm.state || '').trim(),
-        pincode: String(codForm.pincode || '').trim(),
-        quantity: Number(codForm.quantity),
-        unit_price: Number(codForm.unit_price),
-        total_amount: Number(codForm.total_amount),
-        promo_code: String(codForm.promo_code || '').trim().toUpperCase() || undefined,
-        offline_sold: codForm.offline_sold,
-      });
-      setCodOpen(false);
-      setCodForm(emptyCodForm);
-      const list = await loadOrders();
-      if (created?.id) {
-        const found = (list || []).find((o) => String(o.id) === String(created.id));
-        setMessage(
-          `COD order ${found?.orderNumber || created.orderNumber || created.id} created.`
-        );
-      } else {
-        setMessage('COD order created.');
-      }
-      setError('');
-    } catch (err) {
-      if (err.status !== 401) {
-        setCodError(err.message || 'Failed to create COD order');
-      }
-    } finally {
-      setCodSaving(false);
-    }
+    setError('');
   };
 
   const handleDelete = async (order) => {
@@ -837,7 +720,7 @@ export default function Orders() {
     }
     setBulkBusy(true);
     setError('');
-    setMessage(`Downloading ${expectedCount} ${exportingSelection ? 'selected ' : ''}order${expectedCount === 1 ? '' : 's'}…`);
+    setMessage(`Downloading ${expectedCount} ${exportingSelection ? 'selected ' : ''}order${expectedCount === 1 ? '' : 's'}â€¦`);
     try {
       const result = await exportOrders(activeFilters);
       if (!result.orders.length) throw new Error('No orders match the current export selection and filters.');
@@ -906,11 +789,11 @@ export default function Orders() {
       label: 'Customer',
       render: (row) => (
         <div className="orders__customer">
-          <strong>{row.customerName || '—'}</strong>
-          <span>{row.email || '—'}</span>
-          <span>{row.phone || '—'}</span>
+          <strong>{row.customerName || 'â€”'}</strong>
+          <span>{row.email || 'â€”'}</span>
+          <span>{row.phone || 'â€”'}</span>
           <span className="orders__address">
-            {row.fullAddress || row.address || '—'}
+            {row.fullAddress || row.address || 'â€”'}
           </span>
         </div>
       ),
@@ -918,7 +801,7 @@ export default function Orders() {
     {
       key: 'total',
       label: 'Total',
-      render: (row) => `₹${row.total}`,
+      render: (row) => `â‚¹${row.total}`,
     },
     {
       key: 'orderConfirmationStatus',
@@ -938,7 +821,7 @@ export default function Orders() {
             status={
               row.codAdvanceStatus === 'paid' && String(row.paymentStatus || '').toLowerCase() === 'pending'
                 ? 'Partially Paid'
-                : row.paymentStatusLabel || row.paymentStatus || '—'
+                : row.paymentStatusLabel || row.paymentStatus || 'â€”'
             }
           />
           {row.paymentMethod && row.paymentMethod !== (row.paymentStatusLabel || row.paymentStatus) ? (
@@ -949,7 +832,7 @@ export default function Orders() {
               ID: {row.paymentId}
             </span>
           ) : (
-            <span>ID: —</span>
+            <span>ID: â€”</span>
           )}
         </div>
       ),
@@ -962,15 +845,15 @@ export default function Orders() {
           <div className="orders__customer">
             <span>{row.codAdvanceStatus === 'paid' ? 'Partial COD' : paymentModeLabel(row.paymentMode)}</span>
             <span>
-              Advance ₹{row.codAdvanceFee ?? 99}:{' '}
-              {row.codAdvanceStatus === 'paid' ? 'Paid' : row.codAdvanceStatus || '—'}
+              Advance â‚¹{row.codAdvanceFee ?? 99}:{' '}
+              {row.codAdvanceStatus === 'paid' ? 'Paid' : row.codAdvanceStatus || 'â€”'}
             </span>
             {row.codAdvancePaymentId ? (
               <span className="orders__payment-id" title={row.codAdvancePaymentId}>
                 Ref: {row.codAdvancePaymentId}
               </span>
             ) : null}
-            <span>COD due: ₹{row.codAmountDue ?? row.total}</span>
+            <span>COD due: â‚¹{row.codAmountDue ?? row.total}</span>
           </div>
         ) : (
           paymentModeLabel(row.paymentMode)
@@ -983,7 +866,7 @@ export default function Orders() {
         row.promoCode ? (
           <strong className="orders__promo-code">{row.promoCode}</strong>
         ) : (
-          '—'
+          'â€”'
         ),
     },
     {
@@ -1009,7 +892,7 @@ export default function Orders() {
             {row.waybill}
           </a>
         ) : (
-          '—'
+          'â€”'
         ),
     },
     {
@@ -1017,8 +900,8 @@ export default function Orders() {
       label: 'Ordered at',
       render: (row) => (
         <div className="orders__customer">
-          <strong>{row.orderedDate || '—'}</strong>
-          <span>{row.orderedTime || '—'}</span>
+          <strong>{row.orderedDate || 'â€”'}</strong>
+          <span>{row.orderedTime || 'â€”'}</span>
         </div>
       ),
     },
@@ -1046,7 +929,7 @@ export default function Orders() {
   ];
 
   if (loading) {
-    return <div className="loading-state">Loading orders…</div>;
+    return <div className="loading-state">Loading ordersâ€¦</div>;
   }
 
   const from = filtered.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
@@ -1074,9 +957,7 @@ export default function Orders() {
           >
             Export All Time
           </Button>
-          <Button disabled={bulkBusy} onClick={openCodModal}>
-            + Add COD Order
-          </Button>
+          <AddCodOrderButton disabled={bulkBusy} showOfflineSold={false} onCreated={handleCodOrderCreated} />
         </div>
       </div>
 
@@ -1097,7 +978,7 @@ export default function Orders() {
           </strong>
           {(dateFrom || dateTo) && (
             <>
-              <span>{` · ${
+              <span>{` Â· ${
                 metricFilter === 'sales_revenue_received'
                   ? 'Payment date'
                   : metricFilter === 'sales_devices' ||
@@ -1143,8 +1024,8 @@ export default function Orders() {
         <div className="alert alert--info orders__bulk-progress" role="status">
           Creating shipment {bulkProgress.current} of {bulkProgress.total}
           {bulkProgress.orderNumber
-            ? ` (${bulkProgress.orderNumber})…`
-            : '…'}
+            ? ` (${bulkProgress.orderNumber})â€¦`
+            : 'â€¦'}
         </div>
       )}
 
@@ -1235,7 +1116,7 @@ export default function Orders() {
               </svg>
               <input
                 type="search"
-                placeholder="Search order, customer, AWB…"
+                placeholder="Search order, customer, AWBâ€¦"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 disabled={bulkBusy}
@@ -1281,7 +1162,7 @@ export default function Orders() {
             >
               <option value="All">All payment modes</option>
               <option value="COD">COD</option>
-              <option value="COD Advance">COD + ₹99 advance</option>
+              <option value="COD Advance">COD + â‚¹99 advance</option>
               <option value="Razorpay">Online</option>
             </select>
 
@@ -1327,9 +1208,9 @@ export default function Orders() {
             >
               <option value="createdAt:desc">Newest first</option>
               <option value="createdAt:asc">Oldest first</option>
-              <option value="total:desc">Amount high → low</option>
-              <option value="total:asc">Amount low → high</option>
-              <option value="orderNumber:asc">Order A → Z</option>
+              <option value="total:desc">Amount high â†’ low</option>
+              <option value="total:asc">Amount low â†’ high</option>
+              <option value="orderNumber:asc">Order A â†’ Z</option>
             </select>
           </div>
         </div>
@@ -1345,14 +1226,14 @@ export default function Orders() {
                   disabled={bulkBusy}
                   onClick={handleBulkCodPaymentClick}
                 >
-                  {bulkBusy ? 'Updating…' : 'Mark Selected COD as Paid'}
+                  {bulkBusy ? 'Updatingâ€¦' : 'Mark Selected COD as Paid'}
                 </Button>
               )}
               <Button
                 disabled={bulkBusy}
                 onClick={handleBulkCreateClick}
               >
-                {bulkBusy ? 'Creating…' : 'Create Shipments'}
+                {bulkBusy ? 'Creatingâ€¦' : 'Create Shipments'}
               </Button>
               <button
                 type="button"
@@ -1398,7 +1279,7 @@ export default function Orders() {
 
         <div className="pagination">
           <p className="pagination__info">
-            Showing {from}–{to} of {filtered.length}
+            Showing {from}â€“{to} of {filtered.length}
           </p>
           <div className="pagination__controls">
             <Button
@@ -1424,202 +1305,6 @@ export default function Orders() {
         </div>
       </section>
 
-      <Modal
-        open={codOpen}
-        title="Add COD Order"
-        size="lg"
-        onClose={() => !codSaving && setCodOpen(false)}
-        footer={
-          <>
-            <Button
-              variant="secondary"
-              disabled={codSaving}
-              onClick={() => setCodOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              form="cod-order-form"
-              disabled={codSaving}
-            >
-              {codSaving ? 'Saving…' : 'Create COD Order'}
-            </Button>
-          </>
-        }
-      >
-        <form id="cod-order-form" className="form-grid" onSubmit={handleCreateCodOrder}>
-          {codError ? <div className="alert alert--error form-group--full">{codError}</div> : null}
-          <div className="form-group form-group--full">
-            <span>Product</span>
-            <strong>Tel-Aqua Product</strong>
-          </div>
-          <div className="form-group form-group--full">
-            <label htmlFor="cod-offline-sold">Offline Sold</label>
-            <select
-              id="cod-offline-sold"
-              value={codForm.offline_sold}
-              onChange={(e) => updateCodField('offline_sold', e.target.value)}
-              required
-            >
-              {OFFLINE_SOLD_OPTIONS.map((option) => (
-                <option key={option} value={option}>{option}</option>
-              ))}
-            </select>
-          </div>
-          <div className="form-group">
-            <label htmlFor="cod-name">Customer Name</label>
-            <input
-              id="cod-name"
-              value={codForm.customer_name}
-              onChange={(e) => updateCodField('customer_name', e.target.value)}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="cod-phone">Phone</label>
-            <input
-              id="cod-phone"
-              inputMode="numeric"
-              maxLength={10}
-              value={codForm.phone}
-              onChange={(e) => updateCodField('phone', e.target.value)}
-              required
-            />
-          </div>
-          <div className="form-group form-group--full">
-            <label htmlFor="cod-email">Email (optional)</label>
-            <input
-              id="cod-email"
-              type="email"
-              value={codForm.email}
-              onChange={(e) => updateCodField('email', e.target.value)}
-            />
-          </div>
-          <div className="form-group form-group--full">
-            <label htmlFor="cod-address">Address</label>
-            <textarea
-              id="cod-address"
-              value={codForm.address}
-              onChange={(e) => updateCodField('address', e.target.value)}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="cod-city">City</label>
-            <input
-              id="cod-city"
-              value={codForm.city}
-              onChange={(e) => updateCodField('city', e.target.value)}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="cod-state">State</label>
-            <input
-              id="cod-state"
-              value={codForm.state}
-              onChange={(e) => updateCodField('state', e.target.value)}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="cod-pincode">Pincode</label>
-            <input
-              id="cod-pincode"
-              inputMode="numeric"
-              maxLength={6}
-              value={codForm.pincode}
-              onChange={(e) => updateCodField('pincode', e.target.value)}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="cod-quantity">Quantity</label>
-            <input
-              id="cod-quantity"
-              type="number"
-              min="1"
-              step="1"
-              value={codForm.quantity}
-              onChange={(e) => updateCodField('quantity', e.target.value)}
-              required
-            />
-          </div>
-          <div className="form-group form-group--full">
-            <label htmlFor="cod-promo">Coupon Code (optional)</label>
-            <div style={{ display: 'flex', gap: 12 }}>
-              <input
-                id="cod-promo"
-                style={{ flex: 1, textTransform: 'uppercase' }}
-                value={codForm.promo_code}
-                onChange={(e) => updateCodPromoCode(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleApplyCodPromo();
-                  }
-                }}
-                placeholder="e.g. SN40"
-                disabled={codSaving}
-              />
-              {codPromo ? (
-                <Button variant="secondary" disabled={codSaving} onClick={removeCodPromo}>
-                  Remove
-                </Button>
-              ) : (
-                <Button
-                  variant="secondary"
-                  disabled={codSaving || codPromoChecking || !String(codForm.promo_code || '').trim()}
-                  onClick={handleApplyCodPromo}
-                >
-                  {codPromoChecking ? 'Checking…' : 'Apply'}
-                </Button>
-              )}
-            </div>
-            {codPromo ? (
-              <span className="form-hint">
-                {codPromo.code} applied: ₹{codPromo.promo_price} per unit (was ₹
-                {codPromo.original_price}, save ₹{codPromo.discount_amount} per unit).
-              </span>
-            ) : codPromoError ? (
-              <span className="form-hint" style={{ color: 'var(--color-danger, #c62828)' }}>
-                {codPromoError}
-              </span>
-            ) : (
-              <span className="form-hint">
-                With a coupon, the price is taken from the coupon, not the fields below.
-              </span>
-            )}
-          </div>
-          <div className="form-group">
-            <label htmlFor="cod-unit-price">Unit Price</label>
-            <input
-              id="cod-unit-price"
-              type="number"
-              min="0.01"
-              step="0.01"
-              value={codForm.unit_price}
-              onChange={(e) => updateCodField('unit_price', e.target.value)}
-              readOnly={Boolean(codPromo)}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="cod-total">Total Amount</label>
-            <input
-              id="cod-total"
-              type="number"
-              min="0.01"
-              step="0.01"
-              value={codForm.total_amount}
-              onChange={(e) => updateCodField('total_amount', e.target.value)}
-              readOnly={Boolean(codPromo)}
-              required
-            />
-          </div>
-        </form>
-      </Modal>
     </div>
   );
 }

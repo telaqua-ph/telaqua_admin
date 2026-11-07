@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { getOrders } from '../../services/api';
 import { DataTable } from '../../components/Tables';
 import { Button } from '../../components/Buttons';
+import AddCodOrderButton from '../../components/AddCodOrder/AddCodOrderButton';
 import StatusBadge from '../../components/StatusBadge/StatusBadge';
 import { deriveOrderConfirmationStatus } from '../../utils/orderConfirmationStatus';
 import { fulfillmentListLabel } from '../../utils/fulfillmentTimeline';
@@ -21,6 +22,7 @@ export default function OfflineSold() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
 
   const load = async () => {
     setError('');
@@ -149,12 +151,22 @@ export default function OfflineSold() {
           <h2>Offline Sold</h2>
           <p>Orders added from Add COD Order, including past manual orders. Each row keeps the customer, amount, and Offline Sold type.</p>
         </div>
-        <Button onClick={refresh} disabled={refreshing}>
-          {refreshing ? 'Refreshing…' : 'Refresh'}
-        </Button>
+        <div className="orders__header-actions">
+          <Button onClick={refresh} disabled={refreshing}>
+            {refreshing ? 'Refreshing…' : 'Refresh'}
+          </Button>
+          <AddCodOrderButton
+            onCreated={async (created) => {
+              await load();
+              const number = created?.orderNumber || created?.id || '';
+              setMessage(number ? `COD order ${number} created.` : 'COD order created.');
+            }}
+          />
+        </div>
       </div>
 
       {error && <div className="alert alert--error">{error}</div>}
+      {message && <div className="alert alert--success">{message}</div>}
 
       <section className="panel">
         <div className="panel__header orders__toolbar-wrap">
