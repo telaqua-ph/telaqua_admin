@@ -109,7 +109,7 @@ export default function AddCodOrderButton({ onCreated, disabled = false, showOff
         unit_price: Number(form.unit_price),
         total_amount: Number(form.total_amount),
         promo_code: String(form.promo_code || '').trim().toUpperCase() || undefined,
-        offline_sold: showOfflineSold ? form.offline_sold : 'COD Paid-Cash',
+        offline_sold: showOfflineSold ? form.offline_sold : 'COD Pending',
       });
       setOpen(false);
       setForm(emptyCodForm);

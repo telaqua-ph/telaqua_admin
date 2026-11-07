@@ -11,10 +11,12 @@ import '../../styles/shared.css';
 import '../Orders/Orders.css';
 
 const PAGE_SIZE = 10;
+const OFFLINE_SOLD_TYPES = new Set(['cod paid-cash', 'cod paid-qr']);
 
-/**
- * Orders entered from Add COD Order. Website orders stay on the Orders page.
- */
+/** Paid cash and QR sales only. Pending COD stays on the Orders page. */
+function isOfflineSoldOrder(order) {
+  return OFFLINE_SOLD_TYPES.has(String(order?.offlineSold || '').trim().toLowerCase());
+}
 export default function OfflineSold() {
   const [orders, setOrders] = useState([]);
   const [search, setSearch] = useState('');
@@ -28,7 +30,7 @@ export default function OfflineSold() {
     setError('');
     try {
       const list = await getOrders();
-      setOrders(list.filter((order) => order.offlineSold));
+      setOrders(list.filter(isOfflineSoldOrder));
     } catch (err) {
       if (err.status !== 401) setError(err.message || 'Failed to load offline sold orders.');
     }

@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   deleteOrder,
@@ -720,7 +720,7 @@ export default function Orders() {
     }
     setBulkBusy(true);
     setError('');
-    setMessage(`Downloading ${expectedCount} ${exportingSelection ? 'selected ' : ''}order${expectedCount === 1 ? '' : 's'}â€¦`);
+    setMessage(`Downloading ${expectedCount} ${exportingSelection ? 'selected ' : ''}order${expectedCount === 1 ? '' : 's'}…`);
     try {
       const result = await exportOrders(activeFilters);
       if (!result.orders.length) throw new Error('No orders match the current export selection and filters.');
@@ -789,11 +789,11 @@ export default function Orders() {
       label: 'Customer',
       render: (row) => (
         <div className="orders__customer">
-          <strong>{row.customerName || 'â€”'}</strong>
-          <span>{row.email || 'â€”'}</span>
-          <span>{row.phone || 'â€”'}</span>
+          <strong>{row.customerName || '—'}</strong>
+          <span>{row.email || '—'}</span>
+          <span>{row.phone || '—'}</span>
           <span className="orders__address">
-            {row.fullAddress || row.address || 'â€”'}
+            {row.fullAddress || row.address || '—'}
           </span>
         </div>
       ),
@@ -801,7 +801,7 @@ export default function Orders() {
     {
       key: 'total',
       label: 'Total',
-      render: (row) => `â‚¹${row.total}`,
+      render: (row) => `₹${row.total}`,
     },
     {
       key: 'orderConfirmationStatus',
@@ -821,7 +821,7 @@ export default function Orders() {
             status={
               row.codAdvanceStatus === 'paid' && String(row.paymentStatus || '').toLowerCase() === 'pending'
                 ? 'Partially Paid'
-                : row.paymentStatusLabel || row.paymentStatus || 'â€”'
+                : row.paymentStatusLabel || row.paymentStatus || '—'
             }
           />
           {row.paymentMethod && row.paymentMethod !== (row.paymentStatusLabel || row.paymentStatus) ? (
@@ -832,7 +832,7 @@ export default function Orders() {
               ID: {row.paymentId}
             </span>
           ) : (
-            <span>ID: â€”</span>
+            <span>ID: —</span>
           )}
         </div>
       ),
@@ -845,15 +845,15 @@ export default function Orders() {
           <div className="orders__customer">
             <span>{row.codAdvanceStatus === 'paid' ? 'Partial COD' : paymentModeLabel(row.paymentMode)}</span>
             <span>
-              Advance â‚¹{row.codAdvanceFee ?? 99}:{' '}
-              {row.codAdvanceStatus === 'paid' ? 'Paid' : row.codAdvanceStatus || 'â€”'}
+              Advance ₹{row.codAdvanceFee ?? 99}:{' '}
+              {row.codAdvanceStatus === 'paid' ? 'Paid' : row.codAdvanceStatus || '—'}
             </span>
             {row.codAdvancePaymentId ? (
               <span className="orders__payment-id" title={row.codAdvancePaymentId}>
                 Ref: {row.codAdvancePaymentId}
               </span>
             ) : null}
-            <span>COD due: â‚¹{row.codAmountDue ?? row.total}</span>
+            <span>COD due: ₹{row.codAmountDue ?? row.total}</span>
           </div>
         ) : (
           paymentModeLabel(row.paymentMode)
@@ -866,7 +866,7 @@ export default function Orders() {
         row.promoCode ? (
           <strong className="orders__promo-code">{row.promoCode}</strong>
         ) : (
-          'â€”'
+          '—'
         ),
     },
     {
@@ -892,7 +892,7 @@ export default function Orders() {
             {row.waybill}
           </a>
         ) : (
-          'â€”'
+          '—'
         ),
     },
     {
@@ -900,8 +900,8 @@ export default function Orders() {
       label: 'Ordered at',
       render: (row) => (
         <div className="orders__customer">
-          <strong>{row.orderedDate || 'â€”'}</strong>
-          <span>{row.orderedTime || 'â€”'}</span>
+          <strong>{row.orderedDate || '—'}</strong>
+          <span>{row.orderedTime || '—'}</span>
         </div>
       ),
     },
@@ -929,7 +929,7 @@ export default function Orders() {
   ];
 
   if (loading) {
-    return <div className="loading-state">Loading ordersâ€¦</div>;
+    return <div className="loading-state">Loading orders…</div>;
   }
 
   const from = filtered.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
@@ -978,7 +978,7 @@ export default function Orders() {
           </strong>
           {(dateFrom || dateTo) && (
             <>
-              <span>{` Â· ${
+              <span>{` · ${
                 metricFilter === 'sales_revenue_received'
                   ? 'Payment date'
                   : metricFilter === 'sales_devices' ||
@@ -1024,8 +1024,8 @@ export default function Orders() {
         <div className="alert alert--info orders__bulk-progress" role="status">
           Creating shipment {bulkProgress.current} of {bulkProgress.total}
           {bulkProgress.orderNumber
-            ? ` (${bulkProgress.orderNumber})â€¦`
-            : 'â€¦'}
+            ? ` (${bulkProgress.orderNumber})…`
+            : '…'}
         </div>
       )}
 
@@ -1116,7 +1116,7 @@ export default function Orders() {
               </svg>
               <input
                 type="search"
-                placeholder="Search order, customer, AWBâ€¦"
+                placeholder="Search order, customer, AWB…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 disabled={bulkBusy}
@@ -1162,7 +1162,7 @@ export default function Orders() {
             >
               <option value="All">All payment modes</option>
               <option value="COD">COD</option>
-              <option value="COD Advance">COD + â‚¹99 advance</option>
+              <option value="COD Advance">COD + ₹99 advance</option>
               <option value="Razorpay">Online</option>
             </select>
 
@@ -1208,9 +1208,9 @@ export default function Orders() {
             >
               <option value="createdAt:desc">Newest first</option>
               <option value="createdAt:asc">Oldest first</option>
-              <option value="total:desc">Amount high â†’ low</option>
-              <option value="total:asc">Amount low â†’ high</option>
-              <option value="orderNumber:asc">Order A â†’ Z</option>
+              <option value="total:desc">Amount high → low</option>
+              <option value="total:asc">Amount low → high</option>
+              <option value="orderNumber:asc">Order A → Z</option>
             </select>
           </div>
         </div>
@@ -1226,14 +1226,14 @@ export default function Orders() {
                   disabled={bulkBusy}
                   onClick={handleBulkCodPaymentClick}
                 >
-                  {bulkBusy ? 'Updatingâ€¦' : 'Mark Selected COD as Paid'}
+                  {bulkBusy ? 'Updating…' : 'Mark Selected COD as Paid'}
                 </Button>
               )}
               <Button
                 disabled={bulkBusy}
                 onClick={handleBulkCreateClick}
               >
-                {bulkBusy ? 'Creatingâ€¦' : 'Create Shipments'}
+                {bulkBusy ? 'Creating…' : 'Create Shipments'}
               </Button>
               <button
                 type="button"
@@ -1279,7 +1279,7 @@ export default function Orders() {
 
         <div className="pagination">
           <p className="pagination__info">
-            Showing {from}â€“{to} of {filtered.length}
+            Showing {from}–{to} of {filtered.length}
           </p>
           <div className="pagination__controls">
             <Button
