@@ -696,3 +696,23 @@ export async function deleteProduct(id) {
   productsStore = productsStore.filter((p) => p.id !== id);
   return { success: true };
 }
+
+/** Manual shipment statuses the admin can set from the Orders list. */
+export const MANUAL_SHIPMENT_STATUS_OPTIONS = [
+  { value: 'picked_up', label: 'Picked Up' },
+  { value: 'in_transit', label: 'In-Transit' },
+  { value: 'out_for_delivery', label: 'Out-for-Delivery' },
+  { value: 'delivered', label: 'Delivered' },
+  { value: 'rto_in_transit', label: 'RTO-In-Transit' },
+  { value: 'rto_delivered', label: 'RTO-Delivered' },
+];
+
+/** PATCH /api/orders/:id/shipment-status — admin manual shipment status update. */
+export async function updateOrderShipmentStatus(id, status) {
+  const data = await apiRequest(`/api/orders/${id}/shipment-status`, {
+    method: 'PATCH',
+    body: { status },
+  });
+  window.dispatchEvent(new CustomEvent('orders:changed', { detail: { id } }));
+  return normalizeOrder(unwrapItem(data)) || (await getOrderById(id));
+}

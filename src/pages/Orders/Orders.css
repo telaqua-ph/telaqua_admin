@@ -228,3 +228,98 @@
   border-radius: var(--radius-md);
   font-size: 0.875rem;
 }
+
+/* Shipment cell: pencil appears on row hover; click opens dropdown + Save. */
+.orders__ship-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.orders__ship-edit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-bg);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.data-table tr:hover .orders__ship-edit,
+.orders__ship-edit:focus-visible {
+  opacity: 1;
+}
+
+.orders__ship-edit:hover:not(:disabled) {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.orders__ship-edit:disabled {
+  cursor: not-allowed;
+}
+
+@media (hover: none) {
+  .orders__ship-edit {
+    opacity: 1;
+  }
+}
+
+.orders__ship-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 150px;
+}
+
+.orders__ship-select {
+  padding: 5px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 0.8rem;
+}
+
+.orders__ship-select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.orders__ship-editor-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.orders__ship-save,
+.orders__ship-cancel {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.orders__ship-save {
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.orders__ship-save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.orders__ship-cancel {
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text-secondary);
+}

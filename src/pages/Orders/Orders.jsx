@@ -13,6 +13,7 @@ import { DataTable } from '../../components/Tables';
 import { Button } from '../../components/Buttons';
 import AddCodOrderButton from '../../components/AddCodOrder/AddCodOrderButton';
 import StatusBadge from '../../components/StatusBadge/StatusBadge';
+import ShipmentStatusEditor from './ShipmentStatusEditor';
 import { exportOrdersToXlsx } from '../../utils/exportOrdersXlsx';
 import { paymentModeLabel } from '../../utils/paymentModeLabel';
 import { deriveOrderConfirmationStatus } from '../../utils/orderConfirmationStatus';
@@ -884,8 +885,23 @@ export default function Orders() {
       key: 'shipmentStatus',
       label: 'Shipment',
       render: (row) => (
-        <StatusBadge
-          status={row.shipmentStatusDisplay || fulfillmentListLabel(row)}
+        <ShipmentStatusEditor
+          order={row}
+          statusLabel={row.shipmentStatusDisplay || fulfillmentListLabel(row)}
+          disabled={bulkBusy}
+          onSaved={(updated, label) => {
+            if (updated?.id) {
+              setOrders((prev) =>
+                prev.map((o) => (String(o.id) === String(updated.id) ? { ...o, ...updated } : o))
+              );
+            }
+            setMessage(`Shipment status for ${row.orderNumber || row.id} updated to ${label}.`);
+            setError('');
+          }}
+          onError={(msg) => {
+            setError(msg);
+            setMessage('');
+          }}
         />
       ),
     },

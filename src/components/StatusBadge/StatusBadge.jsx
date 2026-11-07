@@ -51,6 +51,7 @@ const statusMap = {
   'Ready For Pickup': 'processing',
   'Pending AWB': 'shipment-idle',
   'RTO In-Transit': 'payment-failed',
+  'RTO Delivered': 'payment-failed',
   RTO: 'payment-failed',
   Undelivered: 'payment-failed',
   'Delivery Exception': 'payment-failed',
