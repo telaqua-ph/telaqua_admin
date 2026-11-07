@@ -87,7 +87,7 @@ function isPaymentBlocked(order) {
   return pay === 'pending' || pay === 'failed';
 }
 
-const OFFLINE_SOLD_OPTIONS = ['COD Pending', 'COD Paid-Cash', 'COD Paid-QR'];
+const OFFLINE_SOLD_OPTIONS = ['COD Paid-Cash', 'COD Paid-QR'];
 
 const emptyCodForm = {
   customer_name: '',
@@ -101,7 +101,7 @@ const emptyCodForm = {
   unit_price: '',
   total_amount: '',
   promo_code: '',
-  offline_sold: 'COD Pending',
+  offline_sold: 'COD Paid-Cash',
 };
 
 export default function Orders() {
