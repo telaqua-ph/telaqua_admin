@@ -11,6 +11,7 @@ import {
   DASHBOARD_METRICS,
   filterOrdersByMetric,
   periodDevicesSold,
+  periodRevenueReceived,
   totalDevicesSold,
 } from '../../utils/dashboardMetrics';
 import { exportOrdersToCsv } from '../../utils/exportOrdersCsv';
@@ -520,8 +521,9 @@ export default function Dashboard() {
     today: getTodayRange(),
     month: getThisMonthRange(),
   };
-  const salesMetricPath = (metric, range) => {
+  const salesMetricPath = (metric, range, dateBasis) => {
     const params = new URLSearchParams({ metric });
+    if (dateBasis) params.set('dateBasis', dateBasis);
     if (
       metric === 'sales_devices' ||
       metric === 'sales_cod_pending_devices' ||
@@ -546,7 +548,9 @@ export default function Dashboard() {
     {
       key: 'analysisRevenue',
       title: 'Revenue Received',
-      value: formatInr(analysis?.revenueReceived ?? 0),
+      value: formatInr(appliedRange
+        ? periodRevenueReceived(orders, appliedRange.from, appliedRange.to)
+        : analysis?.revenueReceived ?? 0),
       icon: icons.pay,
       accent: 'green',
       to: salesMetricPath('sales_revenue_received', appliedRange),
@@ -628,7 +632,7 @@ export default function Dashboard() {
             <h3>Sales overview</h3>
             <p className="dashboard__section-note">
               Total Devices Sold combines paid devices with confirmed COD devices not yet marked as paid.
-              COD uses the order date, Razorpay the payment date; RTO orders are excluded. Revenue includes confirmed payments only.
+              COD uses the order date, Razorpay the payment date; RTO orders are excluded. Revenue includes confirmed payments only, by payment date. In a filtered period, revenue is shown on the order date.
             </p>
           </div>
         </div>
@@ -649,7 +653,7 @@ export default function Dashboard() {
                           : sales?.[card.key] ?? 0}
                       icon={card.icon}
                       accent={card.accent}
-                      to={salesMetricPath(card.metric, salesRanges[card.range])}
+                      to={salesMetricPath(card.metric, salesRanges[card.range], 'payment')}
                     />
                   ))}
                 </div>

@@ -125,6 +125,10 @@ export default function Orders() {
 
   const paymentStatuses = getPaymentStatuses();
 
+  // Sales overview tiles link with dateBasis=payment so their lists stay on
+  // the payment date; every other date filter uses the order date.
+  const paymentDateBasis = searchParams.get('dateBasis') === 'payment';
+
   // Deep-link from dashboard cards: ?payment=Paid&metric=new&status=New
   useEffect(() => {
     const payment = searchParams.get('payment');
@@ -225,7 +229,9 @@ export default function Orders() {
         matchesShipment = fulfillmentListLabel(order) === shipmentFilter;
       }
 
-      const matchesDateRange = metricFilter === 'sales_revenue_received'
+      // Revenue received is listed by order date (cash collected later
+      // still belongs to the day the order was placed).
+      const matchesDateRange = metricFilter === 'sales_revenue_received' && paymentDateBasis
         ? isOrderPaymentInDateRange(order, dateFrom, dateTo)
         : metricFilter === 'sales_devices' ||
             metricFilter === 'sales_cod_pending_devices' ||
@@ -265,6 +271,7 @@ export default function Orders() {
 
     return list;
   }, [
+    paymentDateBasis,
     orders,
     search,
     statusFilter,
@@ -1008,7 +1015,7 @@ export default function Orders() {
           {(dateFrom || dateTo) && (
             <>
               <span>{` · ${
-                metricFilter === 'sales_revenue_received'
+                metricFilter === 'sales_revenue_received' && paymentDateBasis
                   ? 'Payment date'
                   : metricFilter === 'sales_devices' ||
                       metricFilter === 'sales_cod_pending_devices' ||

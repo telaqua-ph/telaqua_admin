@@ -161,14 +161,14 @@ export default function Revenue() {
         </section>
 
         <section className="panel">
-          <div className="panel__header"><div><h3>Daily received revenue</h3><p className="revenue__panel-subtitle">Paid-date basis for {displayDate(range.from)} – {displayDate(range.to)}</p></div><strong>{formatInr(report.receivedRevenue)}</strong></div>
+          <div className="panel__header"><div><h3>Daily received revenue</h3><p className="revenue__panel-subtitle">Order-date basis for {displayDate(range.from)} – {displayDate(range.to)}</p></div><strong>{formatInr(report.receivedRevenue)}</strong></div>
           <div className="revenue__chart" role="img" aria-label="Daily received revenue chart">
             {chartDays.map((day) => <div className="revenue__bar-group" key={day.date} title={`${displayDate(day.date)}: ${formatInr(day.amount)}`}><span className="revenue__bar-value">{day.amount ? formatInr(day.amount) : ''}</span><div className="revenue__bar-track"><div className="revenue__bar" style={{ height: `${Math.max(day.amount ? 8 : 0, (day.amount / maxDay) * 100)}%` }} /></div><span className="revenue__bar-label">{new Date(`${day.date}T00:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span></div>)}
           </div>
         </section>
 
         <section className="panel">
-          <div className="panel__header"><div><h3>Contributing orders</h3><p className="revenue__panel-subtitle">Received orders use their Paid date; pending COD uses its order date.</p></div></div>
+          <div className="panel__header"><div><h3>Contributing orders</h3><p className="revenue__panel-subtitle">All orders are dated by their order date, including COD cash collected later.</p></div></div>
           <DataTable columns={columns} data={report.orders} emptyMessage="No paid or confirmed pending COD orders in this period." />
           <div className="revenue__reconciliation">Table totals: Received <strong>{formatInr(listedReceived)}</strong> · Pending COD <strong>{formatInr(listedPending)}</strong></div>
         </section>

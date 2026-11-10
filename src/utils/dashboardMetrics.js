@@ -195,3 +195,27 @@ export function isDevicesSoldInDateRange(order, from, to) {
   if (isCodOrder(order)) return isOrderCreatedInDateRange(order, from, to);
   return isOrderPaymentInDateRange(order, from, to);
 }
+
+function isTestOrder(order) {
+  const value = order?.is_test_order ?? order?.isTestOrder;
+  return value === true || Number(value) === 1;
+}
+
+/**
+ * Revenue received for a date-filtered period, attributed to the ORDER date:
+ * a COD order placed on 1 Nov whose cash is collected later counts on 1 Nov.
+ * Includes paid ₹99 COD advances. (Sales overview tiles stay payment-dated.)
+ */
+export function periodRevenueReceived(orders, from, to) {
+  return (orders || []).reduce((sum, o) => {
+    if (isTestOrder(o) || !isOrderCreatedInDateRange(o, from, to)) return sum;
+    let amount = 0;
+    if (DASHBOARD_METRICS.sales_revenue_received.match(o)) {
+      amount += Number(o.final_total ?? o.total_amount ?? o.total ?? 0) || 0;
+    }
+    if (String(o.cod_advance_status || o.codAdvanceStatus || '').trim().toLowerCase() === 'paid') {
+      amount += Number(o.cod_advance_fee ?? o.codAdvanceFee ?? 0) || 0;
+    }
+    return sum + amount;
+  }, 0);
+}
