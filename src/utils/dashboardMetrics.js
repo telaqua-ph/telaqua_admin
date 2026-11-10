@@ -5,8 +5,8 @@
 import { fulfillmentListLabel } from './fulfillmentTimeline.js';
 import { deriveOrderConfirmationStatus } from './orderConfirmationStatus.js';
 import {
-  isOrderCreatedInDateRange,
   isOrderPaymentInDateRange,
+  isOrderSoldInDateRange,
 } from './orderDateRange.js';
 import { isCodOrder } from './shipmentHelpers.js';
 
@@ -190,9 +190,12 @@ export function periodDevicesSold(orders, from, to) {
     .reduce((sum, o) => sum + (Number(o.quantity) > 0 ? Number(o.quantity) : 1), 0);
 }
 
-/** COD devices use the order date. Razorpay devices use the payment date. */
+/**
+ * COD devices use the order date (Purchased On for Offline Sold orders).
+ * Razorpay devices use the payment date.
+ */
 export function isDevicesSoldInDateRange(order, from, to) {
-  if (isCodOrder(order)) return isOrderCreatedInDateRange(order, from, to);
+  if (isCodOrder(order)) return isOrderSoldInDateRange(order, from, to);
   return isOrderPaymentInDateRange(order, from, to);
 }
 
@@ -208,7 +211,7 @@ function isTestOrder(order) {
  */
 export function periodRevenueReceived(orders, from, to) {
   return (orders || []).reduce((sum, o) => {
-    if (isTestOrder(o) || !isOrderCreatedInDateRange(o, from, to)) return sum;
+    if (isTestOrder(o) || !isOrderSoldInDateRange(o, from, to)) return sum;
     let amount = 0;
     if (DASHBOARD_METRICS.sales_revenue_received.match(o)) {
       amount += Number(o.final_total ?? o.total_amount ?? o.total ?? 0) || 0;

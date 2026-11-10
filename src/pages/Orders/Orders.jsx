@@ -23,6 +23,7 @@ import { DASHBOARD_METRICS, filterOrdersByMetric, isDevicesSoldInDateRange } fro
 import {
   isOrderCreatedInDateRange,
   isOrderPaymentInDateRange,
+  isOrderSoldInDateRange,
 } from '../../utils/orderDateRange';
 import {
   canCreateShipment,
@@ -238,7 +239,9 @@ export default function Orders() {
             metricFilter === 'sales_total_devices' ||
             metricFilter === 'sales_period_devices'
           ? isDevicesSoldInDateRange(order, dateFrom, dateTo)
-          : isOrderCreatedInDateRange(order, dateFrom, dateTo);
+          : metricFilter === 'sales_revenue_received' || metricFilter === 'sales_pending_revenue'
+            ? isOrderSoldInDateRange(order, dateFrom, dateTo)
+            : isOrderCreatedInDateRange(order, dateFrom, dateTo);
 
       const matchesSearch =
         !q ||

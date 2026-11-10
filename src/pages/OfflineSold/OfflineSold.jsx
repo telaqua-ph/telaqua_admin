@@ -7,6 +7,7 @@ import AddCodOrderButton from '../../components/AddCodOrder/AddCodOrderButton';
 import StatusBadge from '../../components/StatusBadge/StatusBadge';
 import { deriveOrderConfirmationStatus } from '../../utils/orderConfirmationStatus';
 import { fulfillmentListLabel } from '../../utils/fulfillmentTimeline';
+import { orderPurchasedOnDate } from '../../utils/orderDateRange';
 import '../../styles/shared.css';
 import '../Orders/Orders.css';
 
@@ -14,6 +15,17 @@ const PAGE_SIZE = 10;
 const OFFLINE_SOLD_TYPES = new Set(['cod paid-cash', 'cod paid-qr']);
 /** Orders already on this list before the move stay on Orders only. */
 const OFFLINE_SOLD_MOVED_BEFORE = Date.parse('2026-11-07T08:23:00.000Z');
+
+/** 'YYYY-MM-DD' → '10 Nov 2026'. */
+function formatPurchasedOn(value) {
+  const [y, m, d] = value.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+}
 
 /** Cash and QR sales added after the existing list was moved to Orders. */
 function isOfflineSoldOrder(order) {
@@ -132,6 +144,19 @@ export default function OfflineSold() {
       key: 'offlineSold',
       label: 'Offline Sold',
       render: (row) => <StatusBadge status={row.offlineSold} />,
+    },
+    {
+      key: 'purchasedOn',
+      label: 'Purchased On',
+      render: (row) => {
+        const date = orderPurchasedOnDate(row);
+        if (date) return formatPurchasedOn(date);
+        return (
+          <Link to={`/orders/${row.id}`} title="Open the order to set the Purchased On date">
+            Not set
+          </Link>
+        );
+      },
     },
     {
       key: 'orderConfirmationStatus',

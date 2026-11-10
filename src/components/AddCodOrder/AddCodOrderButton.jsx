@@ -18,7 +18,15 @@ const emptyCodForm = {
   total_amount: '',
   promo_code: '',
   offline_sold: 'COD Paid-Cash',
+  purchased_on: '',
 };
+
+/** Today as YYYY-MM-DD in the admin's local time (latest allowed Purchased On date). */
+function todayLocal() {
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
 
 /** The same Add COD Order button and form used on Orders and Offline Sold. */
 export default function AddCodOrderButton({ onCreated, disabled = false, showOfflineSold = true }) {
@@ -110,6 +118,7 @@ export default function AddCodOrderButton({ onCreated, disabled = false, showOff
         total_amount: Number(form.total_amount),
         promo_code: String(form.promo_code || '').trim().toUpperCase() || undefined,
         offline_sold: showOfflineSold ? form.offline_sold : 'COD Pending',
+        purchased_on: showOfflineSold ? form.purchased_on : undefined,
       });
       setOpen(false);
       setForm(emptyCodForm);
@@ -163,6 +172,19 @@ export default function AddCodOrderButton({ onCreated, disabled = false, showOff
                   <option key={option} value={option}>{option}</option>
                 ))}
               </select>
+            </div>
+          ) : null}
+          {showOfflineSold ? (
+            <div className="form-group form-group--full">
+              <label htmlFor="cod-purchased-on">Purchased On</label>
+              <input
+                id="cod-purchased-on"
+                type="date"
+                max={todayLocal()}
+                value={form.purchased_on}
+                onChange={(e) => updateField('purchased_on', e.target.value)}
+                required
+              />
             </div>
           ) : null}
           <div className="form-group">

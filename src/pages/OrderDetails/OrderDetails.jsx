@@ -9,6 +9,7 @@ import {
   getPaymentStatuses,
   markCodPaymentPaid,
   markOrderSeen,
+  updateOrderPurchasedOn,
   updateOrderStatus,
 } from '../../services/api';
 import * as delhivery from '../../services/delhivery';
@@ -21,6 +22,26 @@ import { Modal } from '../../components/Modal';
 import { DeliveryDetailsModal } from '../../components/DeliveryDetailsModal';
 import { deliveryEditStage } from '../../utils/deliveryDetails';
 import { trackingLinkFor } from '../../utils/trackingLink';
+import { orderPurchasedOnDate, todayInKolkata } from '../../utils/orderDateRange';
+
+const OFFLINE_SALE_TYPES = new Set(['cod paid-cash', 'cod paid-qr']);
+
+/** Offline Sold cash / QR order (the only orders that carry Purchased On). */
+function isOfflineSale(order) {
+  return OFFLINE_SALE_TYPES.has(String(order?.offlineSold || '').trim().toLowerCase());
+}
+
+/** 'YYYY-MM-DD' → '10 Nov 2026'. */
+function formatPurchasedOn(value) {
+  if (!value) return '';
+  const [y, m, d] = value.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+}
 import {
   canCreateShipment,
   extractLabelUrl,
@@ -147,6 +168,10 @@ export default function OrderDetails() {
   const [deliveryNotice, setDeliveryNotice] = useState(null);
   const [deliveryHistory, setDeliveryHistory] = useState([]);
   const [courierSyncPending, setCourierSyncPending] = useState(false);
+  const [purchasedOpen, setPurchasedOpen] = useState(false);
+  const [purchasedValue, setPurchasedValue] = useState('');
+  const [purchasedSaving, setPurchasedSaving] = useState(false);
+  const [purchasedError, setPurchasedError] = useState('');
 
   const [editForm, setEditForm] = useState(emptyEditForm);
   const [pickupForm, setPickupForm] = useState(emptyPickup);
@@ -318,6 +343,34 @@ export default function OrderDetails() {
       await Promise.all([refreshOrder(), loadDeliveryHistory()]);
     } catch {
       /* the notice already reflects the saved result */
+    }
+  };
+
+  const openPurchasedEdit = () => {
+    setPurchasedValue(orderPurchasedOnDate(order));
+    setPurchasedError('');
+    setPurchasedOpen(true);
+  };
+
+  const handleSavePurchasedOn = async (e) => {
+    e.preventDefault();
+    if (purchasedSaving) return;
+    if (!purchasedValue) {
+      setPurchasedError('Choose the Purchased On date.');
+      return;
+    }
+    setPurchasedSaving(true);
+    setPurchasedError('');
+    try {
+      const updated = await updateOrderPurchasedOn(id, purchasedValue);
+      setOrder(updated);
+      setPurchasedOpen(false);
+      setMessage('Purchased On date saved.');
+      setError('');
+    } catch (err) {
+      if (err.status !== 401) setPurchasedError(err.message || 'Failed to save Purchased On date');
+    } finally {
+      setPurchasedSaving(false);
     }
   };
 
@@ -1288,6 +1341,35 @@ export default function OrderDetails() {
         </div>
 
         <aside className="order-details__aside">
+          {isOfflineSale(order) ? (
+            <section className="panel">
+              <div className="panel__header">
+                <h3>Offline Sold</h3>
+              </div>
+              <div className="panel__body order-details__stack">
+                <div>
+                  <span>Type</span>
+                  <strong>{order.offlineSold}</strong>
+                </div>
+                <div>
+                  <span>Purchased On</span>
+                  <div className="order-details__inline-edit">
+                    <strong>{formatPurchasedOn(orderPurchasedOnDate(order)) || 'Not set'}</strong>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline-primary"
+                      disabled={busy}
+                      onClick={openPurchasedEdit}
+                    >
+                      {orderPurchasedOnDate(order) ? 'Edit' : 'Set date'}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </section>
+          ) : null}
+
           <section className="panel">
             <div className="panel__header">
               <h3>Customer</h3>
@@ -1777,6 +1859,47 @@ export default function OrderDetails() {
         onClose={() => setDeliveryOpen(false)}
         onSaved={handleDeliverySaved}
       />
+
+      {/* Offline Sold: Purchased On */}
+      <Modal
+        open={purchasedOpen}
+        title={`Purchased On — ${order.orderNumber || id}`}
+        onClose={() => !purchasedSaving && setPurchasedOpen(false)}
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              disabled={purchasedSaving}
+              onClick={() => setPurchasedOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" form="purchased-on-form" disabled={purchasedSaving}>
+              {purchasedSaving ? 'Saving…' : 'Save'}
+            </Button>
+          </>
+        }
+      >
+        <form id="purchased-on-form" className="form-grid" onSubmit={handleSavePurchasedOn}>
+          {purchasedError ? (
+            <div className="alert alert--error form-group--full">{purchasedError}</div>
+          ) : null}
+          <div className="form-group form-group--full">
+            <label htmlFor="purchased-on-date">Purchased On</label>
+            <input
+              id="purchased-on-date"
+              type="date"
+              max={todayInKolkata()}
+              value={purchasedValue}
+              onChange={(e) => setPurchasedValue(e.target.value)}
+              required
+            />
+          </div>
+          <p className="form-hint form-group--full">
+            Revenue and devices sold for this order are counted on this date.
+          </p>
+        </form>
+      </Modal>
 
       {/* Pickup */}
       <Modal

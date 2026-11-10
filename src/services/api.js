@@ -231,6 +231,7 @@ export function normalizeOrder(order) {
     paymentStatus: storedPaymentStatus(order),
     paymentStatusLabel: storedPaymentStatus(order),
     offlineSold: storedOfflineSold(order),
+    purchasedOn: order.purchased_on || order.purchasedOn || null,
     paymentDate: order.payment_date || order.paymentDate || order.created_at || order.date || null,
     orderConfirmationStatus: deriveOrderConfirmationStatus(order),
     paymentId:
@@ -419,6 +420,16 @@ export async function updateOrderStatus(id, status, paymentStatus) {
     body,
   });
   return normalizeOrder(unwrapItem(data)) || (await getOrderById(id));
+}
+
+/** PATCH /api/orders/:id/purchased-on — set Purchased On (YYYY-MM-DD) on an Offline Sold order. */
+export async function updateOrderPurchasedOn(id, purchasedOn) {
+  const data = await apiRequest(`/api/orders/${id}/purchased-on`, {
+    method: 'PATCH',
+    body: { purchased_on: purchasedOn },
+  });
+  window.dispatchEvent(new CustomEvent('orders:changed', { detail: { id } }));
+  return normalizeOrder(data?.order || unwrapItem(data)) || (await getOrderById(id));
 }
 
 /**

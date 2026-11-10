@@ -26,11 +26,36 @@ export function orderCreatedDateInKolkata(order) {
   return datePartsInKolkata(value);
 }
 
+/** Offline Sold "Purchased On" date (YYYY-MM-DD, IST), or '' when not set. */
+export function orderPurchasedOnDate(order) {
+  const raw = String(order?.purchasedOn || order?.purchased_on || '').trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : '';
+}
+
+/**
+ * The business date a sale (and its revenue) belongs to: Purchased On for
+ * Offline Sold orders that have it, otherwise the order's creation date.
+ */
+export function orderSaleDateInKolkata(order) {
+  return orderPurchasedOnDate(order) || orderCreatedDateInKolkata(order);
+}
+
 /** Returns an order's payment date as an ISO date in the business timezone. */
 export function orderPaymentDateInKolkata(order) {
+  // An offline cash / QR sale is paid on the day it was purchased.
+  const purchasedOn = orderPurchasedOnDate(order);
+  if (purchasedOn) return purchasedOn;
   return orderCreatedDateInKolkata({
     createdAt: order?.paymentDate || order?.payment_date || order?.createdAt || order?.created_at,
   });
+}
+
+/** Inclusive [from, to] range match on the sale date (see orderSaleDateInKolkata). */
+export function isOrderSoldInDateRange(order, from, to) {
+  if (!from && !to) return true;
+  const saleDate = orderSaleDateInKolkata(order);
+  if (!saleDate) return false;
+  return (!from || saleDate >= from) && (!to || saleDate <= to);
 }
 
 /** Inclusive [from, to] business-date range matching for an order. */
