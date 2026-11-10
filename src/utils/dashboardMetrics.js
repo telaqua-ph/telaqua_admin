@@ -140,6 +140,14 @@ export const DASHBOARD_METRICS = {
       DASHBOARD_METRICS.sales_devices.match(o) ||
       DASHBOARD_METRICS.sales_cod_pending_devices.match(o),
   },
+  // Selected-period Devices Sold: every order received, either COD or a paid
+  // Razorpay order. Cancelled and RTO/returned orders are excluded.
+  sales_period_devices: {
+    title: 'Devices Sold',
+    filename: 'telaqua-devices-sold.csv',
+    match: (o) =>
+      !isCancelled(o) && !isRtoOrder(o) && (isCodOrder(o) || isPaid(o)),
+  },
   sales_revenue_received: {
     title: 'Revenue Received',
     match: (o) => isPaid(o) && !isCancelled(o),
@@ -173,6 +181,13 @@ export function filterOrdersByMetric(orders, metricKey) {
 
 export function totalDevicesSold(devicesSold, codPendingDevices) {
   return Number(devicesSold ?? 0) + Number(codPendingDevices ?? 0);
+}
+
+/** Device quantity of COD + paid Razorpay orders in the selected period. */
+export function periodDevicesSold(orders, from, to) {
+  return filterOrdersByMetric(orders || [], 'sales_period_devices')
+    .filter((o) => isDevicesSoldInDateRange(o, from, to))
+    .reduce((sum, o) => sum + (Number(o.quantity) > 0 ? Number(o.quantity) : 1), 0);
 }
 
 /** COD devices use the order date. Razorpay devices use the payment date. */

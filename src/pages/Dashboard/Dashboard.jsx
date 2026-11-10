@@ -10,6 +10,7 @@ import { fulfillmentListLabel } from '../../utils/fulfillmentTimeline';
 import {
   DASHBOARD_METRICS,
   filterOrdersByMetric,
+  periodDevicesSold,
   totalDevicesSold,
 } from '../../utils/dashboardMetrics';
 import { exportOrdersToCsv } from '../../utils/exportOrdersCsv';
@@ -535,10 +536,12 @@ export default function Dashboard() {
     {
       key: 'analysisDevices',
       title: 'Devices Sold',
-      value: analysis?.devicesSold ?? 0,
+      value: appliedRange
+        ? periodDevicesSold(orders, appliedRange.from, appliedRange.to)
+        : analysis?.devicesSold ?? 0,
       icon: icons.box,
       accent: 'blue',
-      to: salesMetricPath('sales_devices', appliedRange),
+      to: salesMetricPath('sales_period_devices', appliedRange),
     },
     {
       key: 'analysisRevenue',
