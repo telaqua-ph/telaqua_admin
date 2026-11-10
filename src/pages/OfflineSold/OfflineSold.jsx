@@ -6,7 +6,6 @@ import { Button } from '../../components/Buttons';
 import AddCodOrderButton from '../../components/AddCodOrder/AddCodOrderButton';
 import StatusBadge from '../../components/StatusBadge/StatusBadge';
 import { deriveOrderConfirmationStatus } from '../../utils/orderConfirmationStatus';
-import { fulfillmentListLabel } from '../../utils/fulfillmentTimeline';
 import { orderPurchasedOnDate } from '../../utils/orderDateRange';
 import '../../styles/shared.css';
 import '../Orders/Orders.css';
@@ -177,9 +176,8 @@ export default function OfflineSold() {
     {
       key: 'shipment',
       label: 'Shipment',
-      render: (row) => (
-        <StatusBadge status={row.shipmentStatusDisplay || fulfillmentListLabel(row)} />
-      ),
+      // Offline Sold items are handed over in person, so the shipment is always Delivered.
+      render: () => <StatusBadge status="Delivered" />,
     },
     {
       key: 'waybill',
