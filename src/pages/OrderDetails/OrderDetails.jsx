@@ -994,7 +994,39 @@ export default function OrderDetails() {
                 <span>Payment ID</span>
                 <strong>{order.paymentId || '—'}</strong>
               </div>
-              {order.hasCodAdvance ? (
+              {order.isCodPartialPaid ? (
+                <>
+                  <div>
+                    <span>Order total{order.promoCode ? ' (after coupon)' : ''}</span>
+                    <strong>₹{order.total}</strong>
+                  </div>
+                  <div>
+                    <span>Partially paid (online)</span>
+                    <strong>
+                      ₹{order.codAdvanceFee}{' '}
+                      <StatusBadge status="Paid" />
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Partial payment reference</span>
+                    <strong>{order.codAdvancePaymentId || '—'}</strong>
+                  </div>
+                  <div>
+                    <span>
+                      {String(order.paymentStatus || '').toLowerCase() === 'paid'
+                        ? 'Balance collected (cash)'
+                        : 'Remaining due (cash on delivery)'}
+                    </span>
+                    <strong>₹{order.codAmountDue}</strong>
+                  </div>
+                  <div>
+                    <span>Payment status</span>
+                    <strong>
+                      <StatusBadge status={order.paymentStatusLabel || order.paymentStatus} />
+                    </strong>
+                  </div>
+                </>
+              ) : order.hasCodAdvance ? (
                 <>
                   <div>
                     <span>Product amount</span>

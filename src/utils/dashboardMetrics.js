@@ -9,6 +9,7 @@ import {
   isOrderSoldInDateRange,
 } from './orderDateRange.js';
 import { isCodOrder } from './shipmentHelpers.js';
+import { isCodPartialPaid } from './codPartialPayment.js';
 
 function isPaid(order) {
   const status = String(order?.paymentStatus || order?.payment_status || '').toLowerCase();
@@ -207,18 +208,22 @@ function isTestOrder(order) {
 /**
  * Revenue received for a date-filtered period, attributed to the ORDER date:
  * a COD order placed on 1 Nov whose cash is collected later counts on 1 Nov.
- * Includes paid ₹99 COD advances. (Sales overview tiles stay payment-dated.)
+ * Includes paid COD advances (₹199 partial payments; older orders ₹99 fees).
+ * A ₹199 partial payment is part of the order total, so it is not added twice.
+ * (Sales overview tiles stay payment-dated.)
  */
 export function periodRevenueReceived(orders, from, to) {
   return (orders || []).reduce((sum, o) => {
     if (isTestOrder(o) || !isOrderSoldInDateRange(o, from, to)) return sum;
     let amount = 0;
+    const advancePaid = String(o.cod_advance_status || o.codAdvanceStatus || '').trim().toLowerCase() === 'paid';
+    const advance = advancePaid ? Number(o.cod_advance_fee ?? o.codAdvanceFee ?? 0) || 0 : 0;
     if (DASHBOARD_METRICS.sales_revenue_received.match(o)) {
-      amount += Number(o.final_total ?? o.total_amount ?? o.total ?? 0) || 0;
+      const total = Number(o.final_total ?? o.total_amount ?? o.total ?? 0) || 0;
+      // ₹199 partial payment is already inside the total; counted via `advance` below.
+      amount += isCodPartialPaid(o) ? total - advance : total;
     }
-    if (String(o.cod_advance_status || o.codAdvanceStatus || '').trim().toLowerCase() === 'paid') {
-      amount += Number(o.cod_advance_fee ?? o.codAdvanceFee ?? 0) || 0;
-    }
+    amount += advance;
     return sum + amount;
   }, 0);
 }

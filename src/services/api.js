@@ -20,6 +20,7 @@ import {
   PAYMENT_METHODS,
 } from '../data/dummyOrders';
 import { deriveOrderConfirmationStatus } from '../utils/orderConfirmationStatus';
+import { isCodPartialPaid } from '../utils/codPartialPayment.js';
 
 export { isAuthenticated };
 
@@ -220,8 +221,10 @@ export function normalizeOrder(order) {
     ) || 0,
     paymentMethod: storedPaymentMethod(order),
     paymentMode: displayPaymentMode(order),
-    // ₹99 non-refundable COD advance delivery fee (null for orders placed without it).
+    // COD advance: ₹199 partial payment (deducted from total) or, on older
+    // orders, a ₹99 delivery fee on top. Null for orders placed without one.
     hasCodAdvance: Boolean(order.cod_advance_status),
+    isCodPartialPaid: isCodPartialPaid(order),
     codAdvanceFee: order.cod_advance_fee == null ? null : Number(order.cod_advance_fee),
     codAdvanceStatus: order.cod_advance_status || '',
     codAdvancePaymentId: order.cod_advance_razorpay_payment_id || '',
@@ -229,7 +232,10 @@ export function normalizeOrder(order) {
     codAmountDue: order.cod_amount_due == null ? null : Number(order.cod_amount_due),
     codFeeAcceptedAt: order.cod_fee_declaration_accepted_at || null,
     paymentStatus: storedPaymentStatus(order),
-    paymentStatusLabel: storedPaymentStatus(order),
+    paymentStatusLabel:
+      isCodPartialPaid(order) && storedPaymentStatus(order).toLowerCase() === 'pending'
+        ? 'COD Partially Paid'
+        : storedPaymentStatus(order),
     offlineSold: storedOfflineSold(order),
     purchasedOn: order.purchased_on || order.purchasedOn || null,
     paymentDate: order.payment_date || order.paymentDate || order.created_at || order.date || null,

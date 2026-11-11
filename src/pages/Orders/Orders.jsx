@@ -841,9 +841,11 @@ export default function Orders() {
         const pendingCod = isOrdersPagePendingCod(row);
         const paymentLabel = pendingCod
           ? 'Pending COD'
-          : row.codAdvanceStatus === 'paid' && String(row.paymentStatus || '').toLowerCase() === 'pending'
-            ? 'Partially Paid'
-            : row.paymentStatusLabel || row.paymentStatus || '—';
+          : row.isCodPartialPaid && String(row.paymentStatus || '').toLowerCase() === 'pending'
+            ? 'COD Partially Paid'
+            : row.codAdvanceStatus === 'paid' && String(row.paymentStatus || '').toLowerCase() === 'pending'
+              ? 'Partially Paid'
+              : row.paymentStatusLabel || row.paymentStatus || '—';
         return (
         <div className="orders__customer">
           <StatusBadge status={paymentLabel} />
@@ -865,7 +867,22 @@ export default function Orders() {
       key: 'paymentMode',
       label: 'Payment Mode',
       render: (row) =>
-        row.hasCodAdvance ? (
+        row.isCodPartialPaid ? (
+          <div className="orders__customer">
+            <span>COD Partially Paid</span>
+            <span>Paid online: ₹{row.codAdvanceFee}</span>
+            {row.codAdvancePaymentId ? (
+              <span className="orders__payment-id" title={row.codAdvancePaymentId}>
+                Ref: {row.codAdvancePaymentId}
+              </span>
+            ) : null}
+            <span>
+              {String(row.paymentStatus || '').toLowerCase() === 'paid'
+                ? `Balance ₹${row.codAmountDue} collected`
+                : `Remaining due: ₹${row.codAmountDue}`}
+            </span>
+          </div>
+        ) : row.hasCodAdvance ? (
           <div className="orders__customer">
             <span>{row.codAdvanceStatus === 'paid' ? 'Partial COD' : paymentModeLabel(row.paymentMode)}</span>
             <span>
@@ -1202,7 +1219,7 @@ export default function Orders() {
             >
               <option value="All">All payment modes</option>
               <option value="COD">COD</option>
-              <option value="COD Advance">COD + ₹99 advance</option>
+              <option value="COD Advance">COD Partially Paid (₹199)</option>
               <option value="Razorpay">Online</option>
             </select>
 

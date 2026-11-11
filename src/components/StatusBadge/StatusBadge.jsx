@@ -36,6 +36,7 @@ const statusMap = {
   'COD Paid-QR': 'payment-paid',
   'cod paid-qr': 'payment-paid',
   'Partially Paid': 'confirmed',
+  'COD Partially Paid': 'confirmed',
   Failed: 'payment-failed',
   failed: 'payment-failed',
   Refunded: 'payment-refunded',

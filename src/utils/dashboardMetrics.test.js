@@ -41,3 +41,15 @@ test('Confirmed COD – Payment Pending counts each qualifying order once', () =
 
   assert.deepEqual(confirmedCodPendingIds(orders), [11]);
 });
+
+test('period revenue counts a ₹199 COD partial payment once (pending and after cash is collected)', async () => {
+  const { periodRevenueReceived } = await import('./dashboardMetrics.js');
+  const base = {
+    id: 9, payment_mode: 'cod', paymentMode: 'COD', order_status: 'Confirmed',
+    created_at: '2026-11-11T06:00:00Z', final_total: 4497, total_amount: 4497,
+    cod_advance_fee: 199, cod_advance_status: 'paid', cod_amount_due: 4298,
+  };
+  const range = ['2026-11-01', '2026-11-30'];
+  assert.equal(periodRevenueReceived([{ ...base, payment_status: 'Pending', paymentStatus: 'Pending' }], ...range), 199);
+  assert.equal(periodRevenueReceived([{ ...base, payment_status: 'Paid', paymentStatus: 'Paid' }], ...range), 4497);
+});
