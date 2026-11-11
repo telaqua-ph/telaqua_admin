@@ -262,7 +262,10 @@ const SALES_GROUPS = [
       {
         key: 'todayTotalDevicesSold',
         title: 'Total Devices Sold',
-        value: (data) => totalDevicesSold(data?.todayDevicesSold, data?.todayCodPendingDevices),
+        // Same figure as "Filter a period" → Today (the IST calendar day).
+        value: (data, today) => (today
+          ? today.devicesSold
+          : totalDevicesSold(data?.todayDevicesSold, data?.todayCodPendingDevices)),
         accent: 'orange',
         icon: icons.box,
         metric: 'sales_total_devices',
@@ -271,6 +274,7 @@ const SALES_GROUPS = [
       {
         key: 'todayRevenue',
         title: 'Revenue Received',
+        value: (data, today) => (today ? today.revenueReceived : data?.todayRevenue ?? 0),
         accent: 'green',
         icon: icons.pay,
         format: formatInr,
@@ -286,6 +290,8 @@ export default function Dashboard() {
   const [stats, setStats] = useState(null);
   const [sales, setSales] = useState(null);
   const [analysis, setAnalysis] = useState(null);
+  // Today's figures, loaded with the same request as the "Today" period filter.
+  const [todaySummary, setTodaySummary] = useState(null);
   const [unseenOrders, setUnseenOrders] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -295,6 +301,13 @@ export default function Dashboard() {
   const [customTo, setCustomTo] = useState('');
   const [appliedRange, setAppliedRange] = useState(null);
   const periodApplied = Boolean(appliedRange);
+
+  const loadTodaySummary = useCallback(async () => {
+    const { from, to } = getTodayRange();
+    const todayStats = await getDashboardStats({ from, to });
+    setTodaySummary(todayStats.analysis);
+    return todayStats.analysis;
+  }, []);
 
   const applyStats = useCallback((dashboardStats, rangeLabel, metricOrders) => {
     setSales(dashboardStats);
@@ -351,6 +364,7 @@ export default function Dashboard() {
         const [ordersResult, statsResult] = await Promise.allSettled([
           getOrders(),
           getDashboardStats(),
+          loadTodaySummary(),
         ]);
         if (!active) return;
         const metricOrders =
@@ -383,10 +397,11 @@ export default function Dashboard() {
     return () => {
       active = false;
     };
-  }, [applyStats]);
+  }, [applyStats, loadTodaySummary]);
 
   useEffect(() => {
     const handleOrdersChanged = async () => {
+      loadTodaySummary().catch(() => { /* keep the last today figures */ });
       try {
         const range = appliedRange
           ? {
@@ -421,7 +436,7 @@ export default function Dashboard() {
       window.removeEventListener('orders:payment-changed', handleOrdersChanged);
       window.removeEventListener('orders:deleted', handleOrdersChanged);
     };
-  }, [appliedRange, applyStats, loadDashboard]);
+  }, [appliedRange, applyStats, loadDashboard, loadTodaySummary]);
 
   const handleDownloadMetric = (metricKey) => {
     const metric = DASHBOARD_METRICS[metricKey];
@@ -646,11 +661,12 @@ export default function Dashboard() {
                     <StatCard
                       key={card.key}
                       title={card.title}
-                      value={card.format
-                        ? card.format(sales?.[card.key] ?? 0)
-                        : card.value
-                          ? card.value(sales)
-                          : sales?.[card.key] ?? 0}
+                      value={(() => {
+                        const raw = card.value
+                          ? card.value(sales, group.key === 'today' ? todaySummary : null)
+                          : sales?.[card.key] ?? 0;
+                        return card.format ? card.format(raw ?? 0) : raw;
+                      })()}
                       icon={card.icon}
                       accent={card.accent}
                       to={salesMetricPath(card.metric, salesRanges[card.range], 'payment')}
