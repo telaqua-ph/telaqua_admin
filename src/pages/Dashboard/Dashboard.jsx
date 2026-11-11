@@ -290,8 +290,6 @@ export default function Dashboard() {
   const [stats, setStats] = useState(null);
   const [sales, setSales] = useState(null);
   const [analysis, setAnalysis] = useState(null);
-  // Today's figures, loaded with the same request as the "Today" period filter.
-  const [todaySummary, setTodaySummary] = useState(null);
   const [unseenOrders, setUnseenOrders] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -301,13 +299,6 @@ export default function Dashboard() {
   const [customTo, setCustomTo] = useState('');
   const [appliedRange, setAppliedRange] = useState(null);
   const periodApplied = Boolean(appliedRange);
-
-  const loadTodaySummary = useCallback(async () => {
-    const { from, to } = getTodayRange();
-    const todayStats = await getDashboardStats({ from, to });
-    setTodaySummary(todayStats.analysis);
-    return todayStats.analysis;
-  }, []);
 
   const applyStats = useCallback((dashboardStats, rangeLabel, metricOrders) => {
     setSales(dashboardStats);
@@ -364,7 +355,6 @@ export default function Dashboard() {
         const [ordersResult, statsResult] = await Promise.allSettled([
           getOrders(),
           getDashboardStats(),
-          loadTodaySummary(),
         ]);
         if (!active) return;
         const metricOrders =
@@ -397,11 +387,10 @@ export default function Dashboard() {
     return () => {
       active = false;
     };
-  }, [applyStats, loadTodaySummary]);
+  }, [applyStats]);
 
   useEffect(() => {
     const handleOrdersChanged = async () => {
-      loadTodaySummary().catch(() => { /* keep the last today figures */ });
       try {
         const range = appliedRange
           ? {
@@ -436,7 +425,7 @@ export default function Dashboard() {
       window.removeEventListener('orders:payment-changed', handleOrdersChanged);
       window.removeEventListener('orders:deleted', handleOrdersChanged);
     };
-  }, [appliedRange, applyStats, loadDashboard, loadTodaySummary]);
+  }, [appliedRange, applyStats, loadDashboard]);
 
   const handleDownloadMetric = (metricKey) => {
     const metric = DASHBOARD_METRICS[metricKey];
@@ -548,6 +537,16 @@ export default function Dashboard() {
     if (range?.to) params.set('to', range.to);
     return `/orders?${params.toString()}`;
   };
+
+  // TODAY tiles use exactly the same calculation as "Filter a period" → Today
+  // (computed from the loaded orders), so both always show the same numbers.
+  const todayRangeNow = getTodayRange();
+  const todaySummary = orders.length
+    ? {
+        devicesSold: periodDevicesSold(orders, todayRangeNow.from, todayRangeNow.to),
+        revenueReceived: periodRevenueReceived(orders, todayRangeNow.from, todayRangeNow.to),
+      }
+    : null;
 
   const analysisCards = [
     {
