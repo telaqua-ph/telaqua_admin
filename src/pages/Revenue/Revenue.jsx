@@ -81,7 +81,7 @@ export default function Revenue() {
     [range, report]
   );
   const maxDay = Math.max(...chartDays.map((day) => day.amount), 1);
-  const receivedOrders = report?.orders.filter((order) => order.bucket === 'received') || [];
+  const receivedOrders = report?.orders.filter((order) => order.bucket === 'received' || order.bucket === 'advance') || [];
   const listedReceived = receivedOrders.reduce((sum, order) => sum + order.amount, 0);
   const listedPending = (report?.orders || [])
     .filter((order) => order.bucket === 'pending')
@@ -108,7 +108,7 @@ export default function Revenue() {
     { key: 'accounting_date', label: 'Date', render: (row) => displayDate(row.accounting_date) },
     { key: 'payment_mode', label: 'Payment mode' },
     { key: 'payment_status', label: 'Payment status', render: (row) => <StatusBadge status={row.payment_status} /> },
-    { key: 'bucket', label: 'Included in', render: (row) => <span className={`revenue__bucket revenue__bucket--${row.bucket}`}>{row.bucket === 'received' ? 'Received' : 'Pending COD'}</span> },
+    { key: 'bucket', label: 'Included in', render: (row) => <span className={`revenue__bucket revenue__bucket--${row.bucket}`}>{row.bucket === 'advance' ? 'Received advance' : row.bucket === 'received' ? 'Received' : 'Pending COD'}</span> },
     { key: 'amount', label: 'Amount', render: (row) => <strong>{formatInr(row.amount)}</strong> },
     { key: 'action', label: 'Action', render: (row) => <Link className="revenue__view" to={`/orders/${row.id}`}>Open order</Link> },
   ];
@@ -168,7 +168,7 @@ export default function Revenue() {
         </section>
 
         <section className="panel">
-          <div className="panel__header"><div><h3>Contributing orders</h3><p className="revenue__panel-subtitle">All orders are dated by their order date, including COD cash collected later.</p></div></div>
+          <div className="panel__header"><div><h3>Contributing orders</h3><p className="revenue__panel-subtitle">Orders use their order date, including COD cash collected later. Offline Sold orders use Purchased On.</p></div></div>
           <DataTable columns={columns} data={report.orders} emptyMessage="No paid or confirmed pending COD orders in this period." />
           <div className="revenue__reconciliation">Table totals: Received <strong>{formatInr(listedReceived)}</strong> · Pending COD <strong>{formatInr(listedPending)}</strong></div>
         </section>

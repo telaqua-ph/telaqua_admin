@@ -21,6 +21,7 @@ import {
 } from '../data/dummyOrders';
 import { deriveOrderConfirmationStatus } from '../utils/orderConfirmationStatus';
 import { isCodPartialPaid } from '../utils/codPartialPayment.js';
+import { orderPurchasedOnDate } from '../utils/orderDateRange.js';
 
 export { isAuthenticated };
 
@@ -188,6 +189,13 @@ function storedOfflineSold(order) {
 export function normalizeOrder(order) {
   if (!order) return null;
 
+  const purchasedOn = orderPurchasedOnDate(order);
+  const purchasedDateLabel = purchasedOn
+    ? new Date(`${purchasedOn}T00:00:00+05:30`).toLocaleDateString('en-IN', {
+        timeZone: 'Asia/Kolkata', year: 'numeric', month: 'short', day: '2-digit',
+      })
+    : '';
+
   const addressParts = [
     order.address,
     order.city,
@@ -252,9 +260,11 @@ export function normalizeOrder(order) {
       isCancellationFlag(order.is_cancelled ?? order.isCancelled) ||
       Boolean(order.cancelled_at || order.canceled_at) ||
       ['cancelled', 'canceled'].includes(String(order.order_status || order.status || '').trim().toLowerCase()),
-    date: formatDateTime(order.created_at || order.date),
-    orderedDate: formatDatePart(order.created_at || order.date),
-    orderedTime: formatTimePart(order.created_at || order.date),
+    date: purchasedDateLabel || formatDateTime(order.created_at || order.date),
+    orderedDate: purchasedDateLabel || formatDatePart(order.created_at || order.date),
+    // Purchased On is a calendar date; no purchase time was recorded.
+    orderedTime: purchasedOn ? '' : formatTimePart(order.created_at || order.date),
+    orderDate: purchasedOn ? `${purchasedOn}T00:00:00+05:30` : order.created_at || null,
     createdAt: order.created_at || null,
     updatedAt: order.updated_at || null,
     deletedAt: order.deleted_at || order.deletedAt || null,

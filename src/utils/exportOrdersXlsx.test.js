@@ -42,3 +42,15 @@ test('merges Tel-Aqua order data into its canonical Shipway fields', () => {
   assert.equal(rows[0]['*Order Date'], '2026-10-08 07:00:00');
   assert.equal(columns.length, 44);
 });
+
+
+test('offline exports use Purchased On while ordinary orders retain their timestamp', () => {
+  const { rows } = buildDeduplicatedShipwayExport([
+    { id: 1, createdAt: '2026-11-10T10:00:00Z', purchasedOn: '2026-08-08' },
+    { id: 2, created_at: '2026-11-10T10:00:00Z', purchased_on: '2026-09-16' },
+    { id: 3, createdAt: '2026-11-10T10:00:00Z' },
+  ]);
+  assert.deepEqual(rows.map((row) => row['*Order Date']), [
+    '2026-08-08', '2026-09-16', '2026-11-10T10:00:00Z',
+  ]);
+});

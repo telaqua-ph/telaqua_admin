@@ -113,7 +113,7 @@ export default function OfflineSold() {
             <strong>{row.orderNumber || row.id}</strong>
           </Link>
           <span>{row.orderedDate || '—'}</span>
-          <span>{row.orderedTime || '—'}</span>
+          {row.orderedTime && <span>{row.orderedTime}</span>}
         </div>
       ),
     },

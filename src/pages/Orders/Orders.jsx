@@ -21,7 +21,6 @@ import { fulfillmentListLabel } from '../../utils/fulfillmentTimeline';
 import { trackingLinkFor } from '../../utils/trackingLink';
 import { DASHBOARD_METRICS, filterOrdersByMetric, isDevicesSoldInDateRange } from '../../utils/dashboardMetrics';
 import {
-  isOrderCreatedInDateRange,
   isOrderPaymentInDateRange,
   isOrderSoldInDateRange,
 } from '../../utils/orderDateRange';
@@ -239,9 +238,7 @@ export default function Orders() {
             metricFilter === 'sales_total_devices' ||
             metricFilter === 'sales_period_devices'
           ? isDevicesSoldInDateRange(order, dateFrom, dateTo)
-          : metricFilter === 'sales_revenue_received' || metricFilter === 'sales_pending_revenue'
-            ? isOrderSoldInDateRange(order, dateFrom, dateTo)
-            : isOrderCreatedInDateRange(order, dateFrom, dateTo);
+          : isOrderSoldInDateRange(order, dateFrom, dateTo);
 
       const matchesSearch =
         !q ||
@@ -266,14 +263,16 @@ export default function Orders() {
 
     list = [...list].sort((a, b) => {
       const dir = sortDir === 'asc' ? 1 : -1;
-      const av = a[sortKey] ?? a.createdAt ?? '';
-      const bv = b[sortKey] ?? b.createdAt ?? '';
+      const av = (sortKey === 'createdAt' ? a.orderDate : a[sortKey]) ?? a.createdAt ?? '';
+      const bv = (sortKey === 'createdAt' ? b.orderDate : b[sortKey]) ?? b.createdAt ?? '';
       if (av === bv) return 0;
       return av > bv ? dir : -dir;
     });
 
     return list;
   }, [
+    sortKey,
+    sortDir,
     paymentDateBasis,
     orders,
     search,
@@ -957,7 +956,7 @@ export default function Orders() {
       render: (row) => (
         <div className="orders__customer">
           <strong>{row.orderedDate || '—'}</strong>
-          <span>{row.orderedTime || '—'}</span>
+          {row.orderedTime && <span>{row.orderedTime}</span>}
         </div>
       ),
     },

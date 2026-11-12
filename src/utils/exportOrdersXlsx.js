@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import { orderPurchasedOnDate } from './orderDateRange.js';
 
 // This is the Shipway import template, kept verbatim and in template order.
 export const SHIPWAY_COLUMNS = [
@@ -66,7 +67,7 @@ function shipmentTimestamp(order, rawKey, labelKey) {
 export function buildDeduplicatedShipwayExport(orders = []) {
   const rows = orders.map((order) => {
     const { firstName, lastName } = splitCustomerName(order.customerName || order.customer_name);
-    const orderDate = order.createdAt || order.created_at || order.date || '';
+    const orderDate = orderPurchasedOnDate(order) || order.createdAt || order.created_at || order.date || '';
     const row = {
       '*Order ID': order.orderNumber || order.order_number || order.id || '',
       'Warehouse ID': order.warehouseId || order.warehouse_id || '',

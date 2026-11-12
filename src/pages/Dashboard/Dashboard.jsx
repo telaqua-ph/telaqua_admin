@@ -15,7 +15,7 @@ import {
   totalDevicesSold,
 } from '../../utils/dashboardMetrics';
 import { exportOrdersToCsv } from '../../utils/exportOrdersCsv';
-import { isOrderCreatedInDateRange, todayInKolkata } from '../../utils/orderDateRange';
+import { isOrderSoldInDateRange, todayInKolkata } from '../../utils/orderDateRange';
 import '../../styles/shared.css';
 import './Dashboard.css';
 
@@ -511,7 +511,7 @@ export default function Dashboard() {
 
   const recentOrders = orders
     .filter((order) =>
-      !appliedRange || isOrderCreatedInDateRange(order, appliedRange.from, appliedRange.to)
+      !appliedRange || isOrderSoldInDateRange(order, appliedRange.from, appliedRange.to)
     )
     .slice(0, 8);
   const recentOrdersPath = appliedRange
@@ -646,7 +646,7 @@ export default function Dashboard() {
             <h3>Sales overview</h3>
             <p className="dashboard__section-note">
               Total Devices Sold combines paid devices with confirmed COD devices not yet marked as paid.
-              COD uses the order date, Razorpay the payment date; RTO orders are excluded. Revenue includes confirmed payments only, by payment date. In a filtered period, revenue is shown on the order date.
+              COD uses the order date, Razorpay the payment date; RTO orders are excluded. Revenue includes confirmed payments only, by payment date. In a filtered period, revenue is shown on the order date. Offline Sold orders use Purchased On for both dates.
             </p>
           </div>
         </div>
