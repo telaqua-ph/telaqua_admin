@@ -1218,7 +1218,7 @@ export default function Orders() {
             >
               <option value="All">All payment modes</option>
               <option value="COD">COD</option>
-              <option value="COD Advance">COD Partially Paid (₹199)</option>
+              <option value="COD Advance">COD Partially Paid</option>
               <option value="Razorpay">Online</option>
             </select>
 

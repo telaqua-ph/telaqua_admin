@@ -156,7 +156,7 @@ export default function Revenue() {
         <section className="revenue__summary">
           <article className="revenue__card revenue__card--received"><span>Revenue Received</span><strong>{formatInr(report.receivedRevenue)}</strong><small>Razorpay + explicitly paid COD + COD partial payments</small></article>
           <article className="revenue__card revenue__card--pending"><span>Pending COD Revenue</span><strong>{formatInr(report.pendingCodRevenue)}</strong><small>Confirmed COD orders still Pending</small></article>
-          <article className="revenue__card"><span>Razorpay received</span><strong>{formatInr(report.razorpayRevenue)}</strong><small>Paid online orders{report.codAdvanceRevenue ? ` + ${formatInr(report.codAdvanceRevenue)} from COD partial payments (₹199)` : ''}</small></article>
+          <article className="revenue__card"><span>Razorpay received</span><strong>{formatInr(report.razorpayRevenue)}</strong><small>Paid online orders{report.codAdvanceRevenue ? ` + ${formatInr(report.codAdvanceRevenue)} from COD partial payments` : ''}</small></article>
           <article className="revenue__card"><span>COD received</span><strong>{formatInr(report.codRevenue)}</strong><small>COD marked Paid</small></article>
         </section>
 
