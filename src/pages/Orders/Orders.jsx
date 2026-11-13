@@ -16,6 +16,7 @@ import StatusBadge from '../../components/StatusBadge/StatusBadge';
 import ShipmentStatusEditor from './ShipmentStatusEditor';
 import { exportOrdersToXlsx } from '../../utils/exportOrdersXlsx';
 import { paymentModeLabel } from '../../utils/paymentModeLabel';
+import { isOfflineSoldOrder } from '../../utils/offlineSold';
 import { deriveOrderConfirmationStatus } from '../../utils/orderConfirmationStatus';
 import { fulfillmentListLabel } from '../../utils/fulfillmentTimeline';
 import { trackingLinkFor } from '../../utils/trackingLink';
@@ -837,7 +838,7 @@ export default function Orders() {
       key: 'paymentStatus',
       label: 'Payment',
       render: (row) => {
-        const offlineSold = ['cod paid-cash', 'cod paid-qr'].includes(String(row.offlineSold || '').trim().toLowerCase());
+        const offlineSold = isOfflineSoldOrder(row);
         const pendingCod = isOrdersPagePendingCod(row);
         const paymentLabel = offlineSold
           ? 'Offline Sold'

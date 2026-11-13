@@ -23,13 +23,7 @@ import { DeliveryDetailsModal } from '../../components/DeliveryDetailsModal';
 import { deliveryEditStage } from '../../utils/deliveryDetails';
 import { trackingLinkFor } from '../../utils/trackingLink';
 import { orderPurchasedOnDate, todayInKolkata } from '../../utils/orderDateRange';
-
-const OFFLINE_SALE_TYPES = new Set(['cod paid-cash', 'cod paid-qr']);
-
-/** Offline Sold cash / QR order (the only orders that carry Purchased On). */
-function isOfflineSale(order) {
-  return OFFLINE_SALE_TYPES.has(String(order?.offlineSold || '').trim().toLowerCase());
-}
+import { isOfflineSoldOrder } from '../../utils/offlineSold';
 
 /** 'YYYY-MM-DD' → '10 Nov 2026'. */
 function formatPurchasedOn(value) {
@@ -1373,7 +1367,7 @@ export default function OrderDetails() {
         </div>
 
         <aside className="order-details__aside">
-          {isOfflineSale(order) ? (
+          {isOfflineSoldOrder(order) ? (
             <section className="panel">
               <div className="panel__header">
                 <h3>Offline Sold</h3>

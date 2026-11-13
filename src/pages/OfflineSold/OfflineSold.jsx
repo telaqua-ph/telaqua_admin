@@ -7,13 +7,11 @@ import AddCodOrderButton from '../../components/AddCodOrder/AddCodOrderButton';
 import StatusBadge from '../../components/StatusBadge/StatusBadge';
 import { deriveOrderConfirmationStatus } from '../../utils/orderConfirmationStatus';
 import { orderPurchasedOnDate } from '../../utils/orderDateRange';
+import { isOfflineSoldOrder } from '../../utils/offlineSold';
 import '../../styles/shared.css';
 import '../Orders/Orders.css';
 
 const PAGE_SIZE = 10;
-const OFFLINE_SOLD_TYPES = new Set(['cod paid-cash', 'cod paid-qr']);
-/** Orders already on this list before the move stay on Orders only. */
-const OFFLINE_SOLD_MOVED_BEFORE = Date.parse('2026-11-07T08:23:00.000Z');
 
 /** 'YYYY-MM-DD' → '10 Nov 2026'. */
 function formatPurchasedOn(value) {
@@ -26,12 +24,6 @@ function formatPurchasedOn(value) {
   });
 }
 
-/** Cash and QR sales added after the existing list was moved to Orders. */
-function isOfflineSoldOrder(order) {
-  if (!OFFLINE_SOLD_TYPES.has(String(order?.offlineSold || '').trim().toLowerCase())) return false;
-  const created = Date.parse(order?.createdAt || order?.created_at || '');
-  return Number.isFinite(created) && created >= OFFLINE_SOLD_MOVED_BEFORE;
-}
 export default function OfflineSold() {
   const [orders, setOrders] = useState([]);
   const [search, setSearch] = useState('');
