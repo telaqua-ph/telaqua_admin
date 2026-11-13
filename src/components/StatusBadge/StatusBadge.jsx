@@ -25,6 +25,8 @@ const statusMap = {
   paid: 'payment-paid',
   'Offline Paid': 'payment-paid',
   'offline paid': 'payment-paid',
+  'Offline Sold': 'payment-paid',
+  'offline sold': 'payment-paid',
   'COD Paid': 'payment-paid',
   'cod paid': 'payment-paid',
   'COD Pending': 'payment-pending',

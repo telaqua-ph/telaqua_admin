@@ -165,7 +165,7 @@ export default function OfflineSold() {
     {
       key: 'paymentStatus',
       label: 'Payment',
-      render: (row) => <StatusBadge status={row.paymentStatusLabel || row.paymentStatus} />,
+      render: () => <StatusBadge status="Offline Sold" />,
     },
     {
       key: 'promoCode',

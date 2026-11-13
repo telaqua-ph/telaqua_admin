@@ -837,8 +837,11 @@ export default function Orders() {
       key: 'paymentStatus',
       label: 'Payment',
       render: (row) => {
+        const offlineSold = ['cod paid-cash', 'cod paid-qr'].includes(String(row.offlineSold || '').trim().toLowerCase());
         const pendingCod = isOrdersPagePendingCod(row);
-        const paymentLabel = pendingCod
+        const paymentLabel = offlineSold
+          ? 'Offline Sold'
+          : pendingCod
           ? 'Pending COD'
           : row.isCodPartialPaid && String(row.paymentStatus || '').toLowerCase() === 'pending'
             ? 'COD Partially Paid'
