@@ -275,6 +275,13 @@ export default function OrderDetails() {
   const isIndiaPostShipment = String(order?.shippingProvider || '').toLowerCase() === 'indiapost';
   // Shipway and India Post shipments are managed outside Delhivery (no Delhivery pickup/update/NDR).
   const isManagedShipment = isShipwayShipment || isIndiaPostShipment;
+  const carrierLabel = isIndiaPostShipment
+    ? 'India Post Speed Post'
+    : isShipwayShipment
+      ? (shipwayTracking?.courier_name && !/^shipway$/i.test(shipwayTracking.courier_name)
+        ? `Shipway (${shipwayTracking.courier_name})`
+        : 'Shipway')
+      : 'Delhivery';
   const createAllowed = canCreateShipment(order);
   const canCollectCod =
     isCodOrder(order) &&
@@ -1081,7 +1088,7 @@ export default function OrderDetails() {
             <div className="panel__body order-details__fields">
               <div>
                 <span>Carrier</span>
-                <strong>Delhivery</strong>
+                <strong>{carrierLabel}</strong>
               </div>
               <div>
                 <span>Fulfillment Status</span>
@@ -1090,7 +1097,7 @@ export default function OrderDetails() {
                 </strong>
               </div>
               <div>
-                <span>AWB</span>
+                <span>{isIndiaPostShipment ? 'Article Number' : 'AWB'}</span>
                 <div className="order-details__awb">
                   <strong className="order-details__awb-value">
                     {order.waybill || '—'}
