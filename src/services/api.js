@@ -619,6 +619,11 @@ export async function getDashboardStats({ from, to } = {}) {
     paidOrders: Number(data?.paidOrders || 0),
     pendingPayments: Number(data?.pendingPayments || 0),
     codOrders: Number(data?.codOrders || 0),
+    // Keep the server aggregate for the COD Paid dashboard card.  Without
+    // this, Dashboard falls back to its limited Orders-list response, which
+    // can be stale or omit older orders after a manual payment-status change.
+    codPaidOrders: Number(data?.codPaidOrders || 0),
+    rtoReturnOrders: Number(data?.rtoReturnOrders || 0),
     shipmentsCreated: Number(data?.shipmentsCreated || 0),
     cancelledOrders: Number(data?.cancelledOrders || 0),
     unseenOrders: Number(data?.unseenOrders || 0),
