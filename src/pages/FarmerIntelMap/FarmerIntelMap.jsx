@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getFarmerIntelPincodeOrders, getFarmerIntelSummary } from '../../services/api';
+import { getFarmerIntelBasemap, getFarmerIntelPincodeOrders, getFarmerIntelSummary } from '../../services/api';
 import { Button } from '../../components/Buttons';
 import './FarmerIntelMap.css';
 
@@ -17,22 +17,23 @@ function dotStatusClass(location) {
   return 'farmer-map__dot--delivered';
 }
 
-function locationPosition(location, locations) {
-  const latitudes = locations.map((item) => Number(item.latitude));
-  const longitudes = locations.map((item) => Number(item.longitude));
+function projectLocation(location, basemap) {
   const lat = Number(location.latitude);
   const lng = Number(location.longitude);
-  const minLat = Math.min(...latitudes); const maxLat = Math.max(...latitudes);
-  const minLng = Math.min(...longitudes); const maxLng = Math.max(...longitudes);
-  return {
-    left: `${12 + ((lng - minLng) / Math.max(maxLng - minLng, 1)) * 76}%`,
-    top: `${86 - ((lat - minLat) / Math.max(maxLat - minLat, 1)) * 74}%`,
-  };
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  const { longitudeOrigin, latitudeOrigin, longitudeScale, latitudeScale } = basemap.projection;
+  const [minX, minY, width, height] = basemap.viewBox;
+  const x = (lng - longitudeOrigin) * longitudeScale;
+  const y = (latitudeOrigin - lat) * latitudeScale;
+  if (x < minX || y < minY || x > minX + width || y > minY + height) return null;
+  return { x, y };
 }
 
 export default function FarmerIntelMap() {
   const [filters, setFilters] = useState(initialFilters);
   const [data, setData] = useState(null);
+  const [basemap, setBasemap] = useState(null);
+  const [basemapError, setBasemapError] = useState('');
   const [selected, setSelected] = useState(null);
   const [orders, setOrders] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -52,6 +53,15 @@ export default function FarmerIntelMap() {
   }, [filters]);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    let active = true;
+    getFarmerIntelBasemap().then((response) => {
+      if (active) setBasemap(response.basemap);
+    }).catch((requestError) => {
+      if (active) setBasemapError(requestError.message || 'Unable to load India basemap.');
+    });
+    return () => { active = false; };
+  }, []);
   useEffect(() => {
     const refreshSeconds = Math.max(15, Number(data?.refresh_after_seconds || 60));
     const timer = window.setInterval(() => load({ quiet: true }), refreshSeconds * 1000);
@@ -92,15 +102,28 @@ export default function FarmerIntelMap() {
     <div className="farmer-map__cards">{summaryCards.map(([label, value]) => <article key={label}><span>{label}</span><strong>{value ?? 0}</strong></article>)}</div>
     {loading && !data ? <div className="loading-state">Loading map data…</div> : <div className="farmer-map__grid">
       <section className="farmer-map__surface" aria-label="Pincode map">
-        <div className="farmer-map__surface-label">Pincode map · coordinates are private admin data</div>
-        {locations.length ? locations.map((location) => {
-          const position = locationPosition(location, locations);
-          return <button key={location.pincode} type="button" className={`farmer-map__dot ${dotStatusClass(location)}`} style={position} onClick={() => selectLocation(location)} onFocus={() => setSelected(location)} aria-label={`${location.pincode}, ${location.district || 'Unknown district'}, ${location.total_orders} orders`}>
-            <span>{asNumber(location.total_orders)}</span>
-            <i role="tooltip"><b>{location.pincode}</b><br />{location.district || 'Unknown district'}, {location.state || 'Unknown state'}<br />Orders {location.total_orders} · Delivered {location.delivered_orders} · Returned {location.returned_orders} · Pending {location.pending_orders}<br />Return rate {percent(location.return_rate)}</i>
-          </button>;
-        }) : <div className="farmer-map__empty">No mapped pincode coordinates are available. Import approved private pincode coordinates to show dots.</div>}
+        <div className="farmer-map__surface-label">India · state boundaries · pincode centroids only</div>
+        {basemap ? <svg className="farmer-map__basemap" viewBox={basemap.viewBox.join(' ')} role="img" aria-label="India map with state boundaries and order pincodes">
+          <path className="farmer-map__india" d={basemap.indiaPath} />
+          {basemap.statePaths.map((state) => <path key={state.name} className="farmer-map__state" d={state.path} />)}
+          {locations.map((location) => {
+            const point = projectLocation(location, basemap);
+            if (!point) return null;
+            const label = `${location.pincode}, ${location.district || 'Unknown district'}, ${location.state || 'Unknown state'}; ${location.total_orders} orders, ${location.delivered_orders} delivered, ${location.returned_orders} returned, ${location.pending_orders} pending`;
+            return <g key={location.pincode} className={`farmer-map__dot ${dotStatusClass(location)}`} transform={`translate(${point.x} ${point.y})`} role="button" tabIndex={0} aria-label={label} onClick={() => selectLocation(location)} onFocus={() => setSelected(location)} onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                selectLocation(location);
+              }
+            }}>
+              <title>{label}</title>
+              <circle r={Math.min(18, Math.max(8, 6 + Math.sqrt(asNumber(location.total_orders)) * 1.5))} />
+            </g>;
+          })}
+        </svg> : <div className="farmer-map__empty" role="status">{basemapError || 'Loading authenticated India basemap…'}</div>}
+        {basemap && locations.length === 0 && <div className="farmer-map__empty">No mapped pincode coordinates are available. Import approved private pincode coordinates to show dots.</div>}
         <div className="farmer-map__pond">Pond-area layer: {data?.pond_area_layer?.available ? 'available' : 'unavailable — no approved source configured'}</div>
+        {basemap && <div className="farmer-map__attribution">{basemap.source}</div>}
       </section>
       <aside className="farmer-map__panel">
         <h3>{selected ? `${selected.pincode} orders` : 'Select a pincode'}</h3>

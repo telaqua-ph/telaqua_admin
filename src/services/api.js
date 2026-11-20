@@ -342,6 +342,10 @@ export async function getFarmerIntelSummary(filters = {}) {
   return apiRequest(`/api/admin/farmer-intel/summary${search.size ? `?${search}` : ''}`);
 }
 
+export async function getFarmerIntelBasemap() {
+  return apiRequest('/api/admin/farmer-intel/basemap');
+}
+
 export async function getFarmerIntelPincodeOrders(pincode, options = {}) {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(options)) {
