@@ -8,6 +8,15 @@ const initialFilters = { from: '', to: '', status: 'all', district: '' };
 const asNumber = (value) => Number(value || 0);
 const percent = (value) => value == null ? '—' : `${Number(value).toFixed(1)}%`;
 
+function dotStatusClass(location) {
+  const delivered = asNumber(location.delivered_orders);
+  const returned = asNumber(location.returned_orders);
+  const pending = asNumber(location.pending_orders);
+  if (returned > delivered && returned >= pending) return 'farmer-map__dot--returned';
+  if (pending > delivered && pending > returned) return 'farmer-map__dot--pending';
+  return 'farmer-map__dot--delivered';
+}
+
 function locationPosition(location, locations) {
   const latitudes = locations.map((item) => Number(item.latitude));
   const longitudes = locations.map((item) => Number(item.longitude));
@@ -86,7 +95,7 @@ export default function FarmerIntelMap() {
         <div className="farmer-map__surface-label">Pincode map · coordinates are private admin data</div>
         {locations.length ? locations.map((location) => {
           const position = locationPosition(location, locations);
-          return <button key={location.pincode} type="button" className="farmer-map__dot" style={position} onClick={() => selectLocation(location)} onFocus={() => setSelected(location)} aria-label={`${location.pincode}, ${location.district || 'Unknown district'}, ${location.total_orders} orders`}>
+          return <button key={location.pincode} type="button" className={`farmer-map__dot ${dotStatusClass(location)}`} style={position} onClick={() => selectLocation(location)} onFocus={() => setSelected(location)} aria-label={`${location.pincode}, ${location.district || 'Unknown district'}, ${location.total_orders} orders`}>
             <span>{asNumber(location.total_orders)}</span>
             <i role="tooltip"><b>{location.pincode}</b><br />{location.district || 'Unknown district'}, {location.state || 'Unknown state'}<br />Orders {location.total_orders} · Delivered {location.delivered_orders} · Returned {location.returned_orders} · Pending {location.pending_orders}<br />Return rate {percent(location.return_rate)}</i>
           </button>;
