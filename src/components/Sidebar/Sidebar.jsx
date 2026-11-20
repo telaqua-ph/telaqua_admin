@@ -29,6 +29,16 @@ const navItems = [
     ),
   },
   {
+    to: '/farmer-intel-map',
+    label: 'Farmer Intel Map',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M9 18l-6 3V5l6-3 6 3 6-3v16l-6 3-6-3z" />
+        <path d="M9 2v16M15 5v16" />
+      </svg>
+    ),
+  },
+  {
     to: '/orders',
     label: 'Orders',
     icon: (

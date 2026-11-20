@@ -601,6 +601,16 @@ export default function Dashboard() {
 
       {error && <div className="alert alert--error">{error}</div>}
 
+      <section className="panel">
+        <div className="panel__header">
+          <div>
+            <h3>Farmer Intel</h3>
+            <p className="dashboard__section-note">Explore live pincode-level order operations inside the protected dashboard.</p>
+          </div>
+          <Link to="/farmer-intel-map"><Button size="sm">Open Farmer Intel Map</Button></Link>
+        </div>
+      </section>
+
       {unseenOrders > 0 && (
         <div className="alert alert--info dashboard__unseen-alert">
           <div>

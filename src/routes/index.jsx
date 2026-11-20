@@ -16,6 +16,7 @@ import OfflineSold from '../pages/OfflineSold';
 import PromoCodes from '../pages/PromoCodes';
 import Revenue from '../pages/Revenue';
 import NotFound from '../pages/NotFound';
+import FarmerIntelMap from '../pages/FarmerIntelMap/FarmerIntelMap';
 
 export default function AppRoutes() {
   return (
@@ -38,6 +39,7 @@ export default function AppRoutes() {
         <Route path="inventory" element={<Inventory />} />
         <Route path="promo-codes" element={<PromoCodes />} />
         <Route path="revenue" element={<Revenue />} />
+        <Route path="farmer-intel-map" element={<FarmerIntelMap />} />
         <Route path="products" element={<Products />} />
         <Route path="products/add" element={<AddProduct />} />
         <Route path="products/edit/:id" element={<EditProduct />} />

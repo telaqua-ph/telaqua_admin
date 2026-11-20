@@ -276,6 +276,7 @@ export function normalizeOrder(order) {
     shipmentRecordId: order.shipment_record_id || order.shipmentRecordId || null,
     fulfillmentStatus: order.fulfillment_status || order.fulfillmentStatus || 'unfulfilled',
     shippingProvider: order.shipping_provider || order.shippingProvider || 'Delhivery',
+    courierName: order.courier_name || order.courierName || '',
     carrierId: order.carrier_id || order.carrierId || '',
     shipmentStatus: order.shipment_status || order.shipmentStatus || 'Not Created',
     shipmentStatusDisplay:
@@ -331,6 +332,22 @@ export function normalizeOrder(order) {
 export async function getOrders() {
   const data = await apiRequest('/api/orders');
   return unwrapList(data).map(normalizeOrder);
+}
+
+export async function getFarmerIntelSummary(filters = {}) {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) {
+    if (value) search.set(key, value);
+  }
+  return apiRequest(`/api/admin/farmer-intel/summary${search.size ? `?${search}` : ''}`);
+}
+
+export async function getFarmerIntelPincodeOrders(pincode, options = {}) {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(options)) {
+    if (value !== undefined && value !== null && value !== '') search.set(key, value);
+  }
+  return apiRequest(`/api/admin/farmer-intel/pincodes/${encodeURIComponent(pincode)}/orders?${search}`);
 }
 
 /**

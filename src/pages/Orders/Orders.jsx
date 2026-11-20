@@ -938,6 +938,11 @@ export default function Orders() {
       ),
     },
     {
+      key: 'courier',
+      label: 'Courier',
+      render: (row) => row.courierName || row.shippingProvider || 'Unassigned',
+    },
+    {
       key: 'waybill',
       label: 'AWB',
       render: (row) =>

@@ -1088,7 +1088,7 @@ export default function OrderDetails() {
             <div className="panel__body order-details__fields">
               <div>
                 <span>Carrier</span>
-                <strong>{carrierLabel}</strong>
+                <strong>{order.courierName || carrierLabel}</strong>
               </div>
               <div>
                 <span>Fulfillment Status</span>

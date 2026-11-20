@@ -12,6 +12,7 @@ const titles = {
   '/inventory': 'Inventory',
   '/promo-codes': 'Discounts',
   '/revenue': 'Revenue',
+  '/farmer-intel-map': 'Farmer Intel Map',
   '/products': 'Products',
   '/products/add': 'Add Product',
   '/settings': 'Settings',
