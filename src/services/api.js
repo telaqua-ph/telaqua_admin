@@ -47,6 +47,8 @@ export async function login(email, password) {
 
 export function logout() {
   clearAuthSession();
+  // Signing out of the admin also locks the Farmer Intel Map again.
+  clearFarmerIntelSession();
 }
 
 export function getCurrentUser() {
@@ -334,16 +336,68 @@ export async function getOrders() {
   return unwrapList(data).map(normalizeOrder);
 }
 
+/*
+ * Farmer Intel Map has its own second login (separate email + password).
+ * Its short-lived token is kept only for this browser tab (sessionStorage)
+ * and sent in the X-Farmer-Intel-Token header.
+ */
+const FARMER_INTEL_TOKEN_KEY = 'farmerIntelSession';
+
+export function getFarmerIntelSession() {
+  try {
+    const raw = window.sessionStorage.getItem(FARMER_INTEL_TOKEN_KEY);
+    if (!raw) return null;
+    const session = JSON.parse(raw);
+    if (!session?.token || Date.now() >= Number(session.expiresAt || 0)) {
+      window.sessionStorage.removeItem(FARMER_INTEL_TOKEN_KEY);
+      return null;
+    }
+    return session;
+  } catch {
+    return null;
+  }
+}
+
+export function clearFarmerIntelSession() {
+  try { window.sessionStorage.removeItem(FARMER_INTEL_TOKEN_KEY); } catch { /* ignore */ }
+}
+
+export async function loginFarmerIntel(email, password) {
+  const data = await apiRequest('/api/admin/farmer-intel/login', {
+    method: 'POST',
+    body: { email, password },
+  });
+  const session = {
+    token: data.token,
+    user: data.user,
+    expiresAt: Date.now() + Math.max(60, Number(data.expiresInSeconds || 1800)) * 1000,
+  };
+  try { window.sessionStorage.setItem(FARMER_INTEL_TOKEN_KEY, JSON.stringify(session)); } catch { /* ignore */ }
+  return session;
+}
+
+function farmerIntelRequest(path, options = {}) {
+  const session = getFarmerIntelSession();
+  return apiRequest(path, {
+    ...options,
+    headers: { ...(options.headers || {}), ...(session ? { 'X-Farmer-Intel-Token': session.token } : {}) },
+  });
+}
+
+export function isFarmerIntelLocked(error) {
+  return error?.status === 403 && error?.data?.code === 'FARMER_INTEL_LOGIN_REQUIRED';
+}
+
 export async function getFarmerIntelSummary(filters = {}) {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(filters)) {
     if (value) search.set(key, value);
   }
-  return apiRequest(`/api/admin/farmer-intel/summary${search.size ? `?${search}` : ''}`);
+  return farmerIntelRequest(`/api/admin/farmer-intel/summary${search.size ? `?${search}` : ''}`);
 }
 
 export async function getFarmerIntelBasemap() {
-  return apiRequest('/api/admin/farmer-intel/basemap');
+  return farmerIntelRequest('/api/admin/farmer-intel/basemap');
 }
 
 export async function getFarmerIntelPincodeOrders(pincode, options = {}) {
@@ -351,7 +405,7 @@ export async function getFarmerIntelPincodeOrders(pincode, options = {}) {
   for (const [key, value] of Object.entries(options)) {
     if (value !== undefined && value !== null && value !== '') search.set(key, value);
   }
-  return apiRequest(`/api/admin/farmer-intel/pincodes/${encodeURIComponent(pincode)}/orders?${search}`);
+  return farmerIntelRequest(`/api/admin/farmer-intel/pincodes/${encodeURIComponent(pincode)}/orders?${search}`);
 }
 
 /**

@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getFarmerIntelBasemap, getFarmerIntelPincodeOrders, getFarmerIntelSummary } from '../../services/api';
+import {
+  clearFarmerIntelSession,
+  getFarmerIntelBasemap,
+  getFarmerIntelPincodeOrders,
+  getFarmerIntelSession,
+  getFarmerIntelSummary,
+  isFarmerIntelLocked,
+  loginFarmerIntel,
+} from '../../services/api';
 import { Button } from '../../components/Buttons';
 import './FarmerIntelMap.css';
 
@@ -29,7 +37,61 @@ function projectLocation(location, basemap) {
   return { x, y };
 }
 
+/** Second lock: separate Farmer Intel email + password before the map loads. */
+function FarmerIntelLogin({ onUnlocked, notice }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  const submit = async (event) => {
+    event.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      const session = await loginFarmerIntel(email.trim(), password);
+      setPassword('');
+      onUnlocked(session);
+    } catch (requestError) {
+      setError(requestError.message || 'Unable to sign in.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return <div className="farmer-map page">
+    <div className="farmer-map__lock">
+      <p className="farmer-map__eyebrow">RESTRICTED</p>
+      <h2>Farmer Intel Map</h2>
+      <p>This map has its own login. Enter your Farmer Intel email and password to continue.</p>
+      {notice && <div className="alert alert--error">{notice}</div>}
+      {error && <div className="alert alert--error">{error}</div>}
+      <form onSubmit={submit} className="farmer-map__lock-form">
+        <label>Email<input type="email" autoComplete="username" required value={email} onChange={(event) => setEmail(event.target.value)} /></label>
+        <label>Password<input type="password" autoComplete="current-password" required value={password} onChange={(event) => setPassword(event.target.value)} /></label>
+        <Button type="submit" disabled={busy}>{busy ? 'Signing in…' : 'Unlock map'}</Button>
+      </form>
+    </div>
+  </div>;
+}
+
 export default function FarmerIntelMap() {
+  const [session, setSession] = useState(() => getFarmerIntelSession());
+  const [lockNotice, setLockNotice] = useState('');
+
+  const lock = useCallback((message = '') => {
+    clearFarmerIntelSession();
+    setLockNotice(message);
+    setSession(null);
+  }, []);
+
+  if (!session) {
+    return <FarmerIntelLogin notice={lockNotice} onUnlocked={(next) => { setLockNotice(''); setSession(next); }} />;
+  }
+  return <FarmerIntelMapContent session={session} onLock={lock} />;
+}
+
+function FarmerIntelMapContent({ session, onLock }) {
   const [filters, setFilters] = useState(initialFilters);
   const [data, setData] = useState(null);
   const [basemap, setBasemap] = useState(null);
@@ -48,9 +110,10 @@ export default function FarmerIntelMap() {
       setLastUpdated(new Date(response.updated_at));
       setError('');
     } catch (requestError) {
+      if (isFarmerIntelLocked(requestError)) { onLock(requestError.message); return; }
       setError(requestError.message || 'Unable to load Farmer Intel Map.');
     } finally { if (!quiet) setLoading(false); }
-  }, [filters]);
+  }, [filters, onLock]);
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
@@ -58,10 +121,18 @@ export default function FarmerIntelMap() {
     getFarmerIntelBasemap().then((response) => {
       if (active) setBasemap(response.basemap);
     }).catch((requestError) => {
-      if (active) setBasemapError(requestError.message || 'Unable to load India basemap.');
+      if (!active) return;
+      if (isFarmerIntelLocked(requestError)) { onLock(requestError.message); return; }
+      setBasemapError(requestError.message || 'Unable to load India basemap.');
     });
     return () => { active = false; };
-  }, []);
+  }, [onLock]);
+  useEffect(() => {
+    // Lock again automatically when the Farmer Intel session expires.
+    const remaining = Number(session?.expiresAt || 0) - Date.now();
+    const timer = window.setTimeout(() => onLock('Your Farmer Intel session has expired. Please sign in again.'), Math.max(0, remaining));
+    return () => window.clearTimeout(timer);
+  }, [session, onLock]);
   useEffect(() => {
     const refreshSeconds = Math.max(15, Number(data?.refresh_after_seconds || 60));
     const timer = window.setInterval(() => load({ quiet: true }), refreshSeconds * 1000);
@@ -75,8 +146,11 @@ export default function FarmerIntelMap() {
     try {
       const response = await getFarmerIntelPincodeOrders(location.pincode, { ...filters, page: 1, limit: 25 });
       setOrders(response);
-    } catch (requestError) { setOrders({ error: requestError.message || 'Unable to load orders.' }); }
-  }, [filters]);
+    } catch (requestError) {
+      if (isFarmerIntelLocked(requestError)) { onLock(requestError.message); return; }
+      setOrders({ error: requestError.message || 'Unable to load orders.' });
+    }
+  }, [filters, onLock]);
 
   const locations = data?.locations || [];
   const totals = data?.totals || {};
@@ -89,7 +163,7 @@ export default function FarmerIntelMap() {
   return <div className="farmer-map page">
     <div className="farmer-map__header">
       <div><p className="farmer-map__eyebrow">LIVE OPERATIONS</p><h2>Farmer Intel Map</h2><p>Pincode-centroid view for Tel-Aqua pH Meter orders. Dots never represent an exact farmer or pond location.</p></div>
-      <div className="farmer-map__refresh"><span>Last updated: {lastUpdated ? lastUpdated.toLocaleTimeString('en-IN') : '—'}{stale ? ' (stale)' : ''}</span><Button size="sm" onClick={() => load()}>Refresh</Button></div>
+      <div className="farmer-map__refresh"><span>Last updated: {lastUpdated ? lastUpdated.toLocaleTimeString('en-IN') : '—'}{stale ? ' (stale)' : ''}</span><Button size="sm" onClick={() => load()}>Refresh</Button><Button size="sm" variant="secondary" onClick={() => onLock('')} title={session?.user?.email ? `Signed in as ${session.user.email}` : undefined}>Lock map</Button></div>
     </div>
     <div className="farmer-map__filters" aria-label="Map filters">
       <label>From<input type="date" value={filters.from} onChange={(event) => setFilters((old) => ({ ...old, from: event.target.value }))} /></label>

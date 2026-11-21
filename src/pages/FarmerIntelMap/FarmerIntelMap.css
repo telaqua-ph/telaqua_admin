@@ -293,3 +293,28 @@
     max-width: 65%;
   }
 }
+
+/* Second login (lock screen) for the Farmer Intel Map */
+.farmer-map__lock {
+  max-width: 420px;
+  margin: 48px auto;
+  padding: 32px;
+  border-radius: 20px;
+  background: #0b1a2c;
+  color: #e6eef8;
+  display: grid;
+  gap: 12px;
+}
+.farmer-map__lock h2 { margin: 0; }
+.farmer-map__lock p { margin: 0; color: #a9bbd0; }
+.farmer-map__lock-form { display: grid; gap: 14px; margin-top: 8px; }
+.farmer-map__lock-form label { display: grid; gap: 6px; font-size: 14px; color: #c9d6e6; }
+.farmer-map__lock-form input {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #2a3f58;
+  background: #10243b;
+  color: #fff;
+  font: inherit;
+}
+.farmer-map__refresh { gap: 10px; }
