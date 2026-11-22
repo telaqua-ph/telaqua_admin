@@ -1,0 +1,163 @@
+.activity-log__filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.activity-log__filters .form-group {
+  margin: 0;
+}
+
+.activity-log__filter-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.activity-log__count {
+  color: #64748b;
+  font-size: 0.875rem;
+}
+
+.activity-log__table-wrap {
+  overflow-x: auto;
+}
+
+.activity-log__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.activity-log__table th {
+  text-align: left;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+
+.activity-log__table td {
+  padding: 12px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: top;
+}
+
+.activity-log__time {
+  white-space: nowrap;
+  color: #475569;
+}
+
+.activity-log__who strong {
+  display: block;
+}
+
+.activity-log__who span {
+  color: #64748b;
+  font-size: 0.8rem;
+}
+
+.activity-log__action {
+  font-weight: 600;
+}
+
+.activity-log__order a {
+  font-weight: 600;
+  color: #ea580c;
+  text-decoration: none;
+}
+
+.activity-log__pagination {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0 0;
+}
+
+.activity-changes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.activity-changes li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: baseline;
+}
+
+.activity-changes__field {
+  color: #475569;
+  font-weight: 600;
+}
+
+.activity-changes__field::after {
+  content: ':';
+}
+
+.activity-changes__from {
+  color: #b91c1c;
+  text-decoration: line-through;
+  text-decoration-color: rgba(185, 28, 28, 0.4);
+}
+
+.activity-changes__arrow {
+  color: #94a3b8;
+}
+
+.activity-changes__to {
+  color: #15803d;
+  font-weight: 600;
+}
+
+.activity-changes__more {
+  color: #64748b;
+  font-size: 0.8rem;
+}
+
+/* Order page history box */
+.order-activity__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.order-activity__item {
+  border-left: 3px solid #fdba74;
+  padding-left: 12px;
+}
+
+.order-activity__head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  align-items: baseline;
+  font-size: 0.9rem;
+}
+
+.order-activity__head time {
+  color: #64748b;
+  font-size: 0.8rem;
+}
+
+.order-activity__item .activity-changes {
+  margin-top: 6px;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 640px) {
+  .activity-log__table th:nth-child(5),
+  .activity-log__table td:nth-child(5) {
+    min-width: 220px;
+  }
+}

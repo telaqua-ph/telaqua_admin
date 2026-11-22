@@ -823,3 +823,48 @@ export async function updateOrderShipmentStatus(id, status) {
   window.dispatchEvent(new CustomEvent('orders:changed', { detail: { id } }));
   return normalizeOrder(unwrapItem(data)) || (await getOrderById(id));
 }
+
+// ---------------------------------------------------------------------------
+// Admin Activity Log (who changed what) — read-only
+// ---------------------------------------------------------------------------
+
+function activityQuery(filters = {}) {
+  const params = new URLSearchParams();
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && String(value).trim() !== '') params.set(key, String(value).trim());
+  });
+  const text = params.toString();
+  return text ? `?${text}` : '';
+}
+
+export async function getActivityAccess() {
+  try {
+    const data = await apiRequest('/api/admin/activity-log/access');
+    return Boolean(data?.data?.canView);
+  } catch {
+    return false;
+  }
+}
+
+export async function getActivityLog(filters = {}) {
+  const data = await apiRequest(`/api/admin/activity-log${activityQuery(filters)}`);
+  return {
+    rows: Array.isArray(data?.data) ? data.data : [],
+    total: Number(data?.total) || 0,
+    page: Number(data?.page) || 1,
+    limit: Number(data?.limit) || 50,
+  };
+}
+
+export async function getActivityFilters() {
+  const data = await apiRequest('/api/admin/activity-log/filters');
+  return {
+    admins: Array.isArray(data?.data?.admins) ? data.data.admins : [],
+    actions: Array.isArray(data?.data?.actions) ? data.data.actions : [],
+  };
+}
+
+export async function getOrderActivity(orderId) {
+  const data = await apiRequest(`/api/admin/activity-log/orders/${encodeURIComponent(orderId)}`);
+  return Array.isArray(data?.data) ? data.data : [];
+}

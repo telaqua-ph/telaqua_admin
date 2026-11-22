@@ -20,6 +20,7 @@ import StatusBadge from '../../components/StatusBadge/StatusBadge';
 import { paymentModeLabel } from '../../utils/paymentModeLabel';
 import { Modal } from '../../components/Modal';
 import { DeliveryDetailsModal } from '../../components/DeliveryDetailsModal';
+import OrderActivityHistory from '../../components/OrderActivityHistory';
 import { deliveryEditStage } from '../../utils/deliveryDetails';
 import { trackingLinkFor } from '../../utils/trackingLink';
 import { orderPurchasedOnDate, todayInKolkata } from '../../utils/orderDateRange';
@@ -1303,6 +1304,8 @@ export default function OrderDetails() {
               </div>
             )}
           </section>
+
+          <OrderActivityHistory orderId={order.id} refreshKey={order} />
 
           <section className="panel">
             <div className="panel__header">

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { getDashboardStats } from '../../services/api';
+import { getActivityAccess, getDashboardStats } from '../../services/api';
 import './Sidebar.css';
 
 const navItems = [
@@ -104,6 +104,17 @@ const navItems = [
     ),
   },
   {
+    to: '/activity-log',
+    label: 'Activity Log',
+    requiresActivityAccess: true,
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7v5l3 2" />
+      </svg>
+    ),
+  },
+  {
     to: '/settings',
     label: 'Settings',
     icon: (
@@ -120,6 +131,11 @@ export default function Sidebar({ open, onClose }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [unseenOrders, setUnseenOrders] = useState(0);
+  const [canViewActivity, setCanViewActivity] = useState(false);
+
+  useEffect(() => {
+    getActivityAccess().then(setCanViewActivity);
+  }, []);
 
   const loadStats = useCallback(async () => {
     try {
@@ -164,7 +180,7 @@ export default function Sidebar({ open, onClose }) {
         </div>
 
         <nav className="sidebar__nav">
-          {navItems.map((item) => (
+          {navItems.filter((item) => !item.requiresActivityAccess || canViewActivity).map((item) => (
             <NavLink
               key={item.label}
               to={item.to}
