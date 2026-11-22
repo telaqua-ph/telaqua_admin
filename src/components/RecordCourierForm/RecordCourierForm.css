@@ -1,0 +1,49 @@
+.record-courier {
+  border-top: 1px solid #f1f5f9;
+  display: grid;
+  gap: 12px;
+}
+
+.record-courier--closed {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.record-courier--closed .form-hint {
+  margin: 0;
+  flex: 1 1 260px;
+}
+
+.record-courier h4 {
+  margin: 0;
+}
+
+.record-courier__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.record-courier__grid .form-group {
+  margin: 0;
+}
+
+.record-courier__error {
+  color: #b91c1c;
+  font-size: 0.8rem;
+}
+
+.record-courier__check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.record-courier__actions {
+  display: flex;
+  gap: 8px;
+}

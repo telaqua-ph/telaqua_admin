@@ -21,6 +21,8 @@ import { paymentModeLabel } from '../../utils/paymentModeLabel';
 import { Modal } from '../../components/Modal';
 import { DeliveryDetailsModal } from '../../components/DeliveryDetailsModal';
 import OrderActivityHistory from '../../components/OrderActivityHistory';
+import RecordCourierForm from '../../components/RecordCourierForm';
+import { hasCourierRecord, recordOrderCourier } from '../../services/courierRecord';
 import { deliveryEditStage } from '../../utils/deliveryDetails';
 import { trackingLinkFor } from '../../utils/trackingLink';
 import { orderPurchasedOnDate, todayInKolkata } from '../../utils/orderDateRange';
@@ -282,7 +284,7 @@ export default function OrderDetails() {
       ? (shipwayTracking?.courier_name && !/^shipway$/i.test(shipwayTracking.courier_name)
         ? `Shipway (${shipwayTracking.courier_name})`
         : 'Shipway')
-      : 'Delhivery';
+      : hasCourierRecord(order) ? 'Delhivery' : 'Not shipped yet';
   const createAllowed = canCreateShipment(order);
   const canCollectCod =
     isCodOrder(order) &&
@@ -744,6 +746,12 @@ export default function OrderDetails() {
     [trackingHistory, trackingPayload]
   );
   const latestTracking = isManagedShipment ? shipwayTracking : null;
+
+  const handleRecordCourier = async (body) => {
+    const result = await runAction('record-courier', () => recordOrderCourier(order.id, body));
+    if (result) setMessage(result.message || 'Courier saved.');
+    return result;
+  };
 
   const handleCreateIndiaPostShipment = async () => {
     if (actionLoading === 'indiapost') return;
@@ -1246,6 +1254,14 @@ export default function OrderDetails() {
                 )}
               </div>
             </div>
+
+            {!order.waybill ? (
+              <RecordCourierForm
+                order={order}
+                busy={actionLoading === 'record-courier'}
+                onSubmit={handleRecordCourier}
+              />
+            ) : null}
 
             <div className="panel__body fulfillment-timeline">
               <h4>Shipment timeline</h4>

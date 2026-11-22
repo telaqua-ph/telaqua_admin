@@ -34,6 +34,7 @@ import {
   extractBackendMessage,
   sanitizeTechnicalMessage,
 } from '../../utils/shipmentErrorMessages';
+import { hasCourierRecord } from '../../services/courierRecord';
 import '../../styles/shared.css';
 import './Orders.css';
 
@@ -940,7 +941,10 @@ export default function Orders() {
     {
       key: 'courier',
       label: 'Courier',
-      render: (row) => row.courierName || row.shippingProvider || 'Unassigned',
+      // No shipment record = courier unknown (booked outside the admin, or not shipped yet).
+      render: (row) => (hasCourierRecord(row)
+        ? row.courierName || row.shippingProvider || 'Unassigned'
+        : <span className="form-hint">Not shipped</span>),
     },
     {
       key: 'waybill',
