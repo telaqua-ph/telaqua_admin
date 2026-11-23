@@ -78,15 +78,19 @@ function FarmerIntelLogin({ onUnlocked, notice }) {
 export default function FarmerIntelMap() {
   const [session, setSession] = useState(() => getFarmerIntelSession());
   const [lockNotice, setLockNotice] = useState('');
+  // The map opens directly for logged-in admins. The lock screen only appears if the
+  // backend asks for the separate Farmer Intel login (FARMER_INTEL_LOGIN_REQUIRED=true).
+  const [loginRequired, setLoginRequired] = useState(false);
 
   const lock = useCallback((message = '') => {
     clearFarmerIntelSession();
     setLockNotice(message);
     setSession(null);
+    setLoginRequired(true);
   }, []);
 
-  if (!session) {
-    return <FarmerIntelLogin notice={lockNotice} onUnlocked={(next) => { setLockNotice(''); setSession(next); }} />;
+  if (loginRequired && !session) {
+    return <FarmerIntelLogin notice={lockNotice} onUnlocked={(next) => { setLockNotice(''); setSession(next); setLoginRequired(false); }} />;
   }
   return <FarmerIntelMapContent session={session} onLock={lock} />;
 }
@@ -129,6 +133,7 @@ function FarmerIntelMapContent({ session, onLock }) {
   }, [onLock]);
   useEffect(() => {
     // Lock again automatically when the Farmer Intel session expires.
+    if (!session) return undefined;
     const remaining = Number(session?.expiresAt || 0) - Date.now();
     const timer = window.setTimeout(() => onLock('Your Farmer Intel session has expired. Please sign in again.'), Math.max(0, remaining));
     return () => window.clearTimeout(timer);
@@ -163,7 +168,7 @@ function FarmerIntelMapContent({ session, onLock }) {
   return <div className="farmer-map page">
     <div className="farmer-map__header">
       <div><p className="farmer-map__eyebrow">LIVE OPERATIONS</p><h2>Farmer Intel Map</h2><p>Pincode-centroid view for Tel-Aqua pH Meter orders. Dots never represent an exact farmer or pond location.</p></div>
-      <div className="farmer-map__refresh"><span>Last updated: {lastUpdated ? lastUpdated.toLocaleTimeString('en-IN') : '—'}{stale ? ' (stale)' : ''}</span><Button size="sm" onClick={() => load()}>Refresh</Button><Button size="sm" variant="secondary" onClick={() => onLock('')} title={session?.user?.email ? `Signed in as ${session.user.email}` : undefined}>Lock map</Button></div>
+      <div className="farmer-map__refresh"><span>Last updated: {lastUpdated ? lastUpdated.toLocaleTimeString('en-IN') : '—'}{stale ? ' (stale)' : ''}</span><Button size="sm" onClick={() => load()}>Refresh</Button>{session ? <Button size="sm" variant="secondary" onClick={() => onLock('')} title={session?.user?.email ? `Signed in as ${session.user.email}` : undefined}>Lock map</Button> : null}</div>
     </div>
     <div className="farmer-map__filters" aria-label="Map filters">
       <label>From<input type="date" value={filters.from} onChange={(event) => setFilters((old) => ({ ...old, from: event.target.value }))} /></label>
