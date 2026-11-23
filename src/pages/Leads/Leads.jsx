@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { deleteLead, deleteOrder, getLeads } from '../../services/api';
+import { confirmLead, deleteLead, deleteOrder, getLeads } from '../../services/api';
 import { DataTable } from '../../components/Tables';
 import { Button } from '../../components/Buttons';
 import StatusBadge from '../../components/StatusBadge/StatusBadge';
+import ConfirmLeadModal from './ConfirmLeadModal';
 import '../../styles/shared.css';
 import '../Orders/Orders.css';
 
@@ -29,6 +30,8 @@ export default function Leads() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [deletingId, setDeletingId] = useState(null);
+  const [confirmingLead, setConfirmingLead] = useState(null);
+  const [confirmSaving, setConfirmSaving] = useState(false);
 
   const load = async () => {
     setError('');
@@ -61,6 +64,25 @@ export default function Leads() {
       if (err.status !== 401) setError(err.message || 'Failed to delete lead.');
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleConfirm = async (form) => {
+    if (!confirmingLead) return;
+    setConfirmSaving(true);
+    setError('');
+    setMessage('');
+    try {
+      const result = await confirmLead(confirmingLead, form);
+      const confirmedId = confirmingLead.leadId;
+      setLeads((prev) => prev.filter((item) => item.leadId !== confirmedId));
+      setConfirmingLead(null);
+      setMessage(result?.message || 'Order confirmed and moved to Orders.');
+    } catch (err) {
+      if (err.status !== 401) setError(err.message || 'Failed to confirm the lead.');
+      setConfirmingLead(null);
+    } finally {
+      setConfirmSaving(false);
     }
   };
 
@@ -166,14 +188,19 @@ export default function Leads() {
       key: 'actions',
       label: 'Action',
       render: (lead) => (
-        <Button
-          size="sm"
-          variant="danger"
-          disabled={deletingId === lead.leadId}
-          onClick={() => handleDelete(lead)}
-        >
-          {deletingId === lead.leadId ? 'Deleting…' : 'Delete'}
-        </Button>
+        <div className="leads__row-actions">
+          <Button size="sm" onClick={() => setConfirmingLead(lead)}>
+            Confirm
+          </Button>
+          <Button
+            size="sm"
+            variant="danger"
+            disabled={deletingId === lead.leadId}
+            onClick={() => handleDelete(lead)}
+          >
+            {deletingId === lead.leadId ? 'Deleting…' : 'Delete'}
+          </Button>
+        </div>
       ),
     },
   ];
@@ -193,6 +220,14 @@ export default function Leads() {
       </div>
 
       {error && <div className="alert alert--error">{error}</div>}
+      {confirmingLead ? (
+        <ConfirmLeadModal
+          lead={confirmingLead}
+          saving={confirmSaving}
+          onClose={() => setConfirmingLead(null)}
+          onConfirm={handleConfirm}
+        />
+      ) : null}
       {message && <div className="alert alert--info">{message}</div>}
 
       <section className="panel">

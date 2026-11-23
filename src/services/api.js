@@ -417,6 +417,21 @@ export async function deleteLead(leadId) {
   await apiRequest(`/api/orders/cod-advance/unpaid/${encodeURIComponent(leadId)}`, { method: 'DELETE' });
 }
 
+/** Leads → Confirm: partial payment received by QR; turns the lead into a COD order. */
+export async function confirmLead(lead, { reference, method, notify }) {
+  return apiRequest('/api/orders/leads/confirm', {
+    method: 'POST',
+    body: {
+      lead_type: lead.leadType === 'online' ? 'online' : 'cod',
+      lead_source: lead.leadSource,
+      lead_id: lead.leadType === 'online' ? lead.orderId : lead.leadId,
+      reference,
+      method,
+      notify,
+    },
+  });
+}
+
 export async function getLeads() {
   const data = await apiRequest('/api/orders/cod-advance/unpaid');
   const checkouts = Array.isArray(data?.checkouts) ? data.checkouts : [];
@@ -448,6 +463,8 @@ export async function getLeads() {
     }),
     leadType: 'cod',
     leadId: c.id,
+    // checkout_leads and cod_advance_payments ids can overlap; the backend needs the source.
+    leadSource: c.lead_source || 'cod_advance',
   }));
 
   // Online: Razorpay order created but the payment is still Pending or Failed.

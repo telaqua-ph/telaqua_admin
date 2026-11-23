@@ -874,7 +874,9 @@ export default function Orders() {
         row.isCodPartialPaid ? (
           <div className="orders__customer">
             <span>COD Partially Paid</span>
-            <span>Paid online: ₹{row.codAdvanceFee}</span>
+            <span>
+              {row.codAdvancePaymentId && !/^pay_/i.test(String(row.codAdvancePaymentId)) ? 'Paid by QR' : 'Paid online'}: ₹{row.codAdvanceFee}
+            </span>
             {row.codAdvancePaymentId ? (
               <span className="orders__payment-id" title={row.codAdvancePaymentId}>
                 Ref: {row.codAdvancePaymentId}

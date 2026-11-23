@@ -1,0 +1,50 @@
+.confirm-lead {
+  display: grid;
+  gap: 16px;
+}
+
+.confirm-lead__summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  padding: 12px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 10px;
+}
+
+.confirm-lead__summary div {
+  display: grid;
+  gap: 2px;
+}
+
+.confirm-lead__summary span {
+  color: #64748b;
+  font-size: 0.8rem;
+}
+
+.confirm-lead__paid {
+  color: #15803d;
+}
+
+.confirm-lead__error {
+  color: #b91c1c;
+  font-size: 0.8rem;
+}
+
+.confirm-lead__check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.confirm-lead__check input {
+  margin-top: 3px;
+}
+
+.leads__row-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
