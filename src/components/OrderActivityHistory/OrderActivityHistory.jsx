@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getActivityAccess, getOrderActivity } from '../../services/api';
 import ActivityChanges from '../ActivityChanges/ActivityChanges';
-import { activityWho, formatActivityTime } from '../../utils/activityFormat';
+import { actionTone, activityHeadline, activityWho, formatActivityTime } from '../../utils/activityFormat';
 import '../../pages/ActivityLog/ActivityLog.css';
 
 /**
@@ -52,12 +52,12 @@ export default function OrderActivityHistory({ orderId, refreshKey }) {
           <ol className="order-activity__list">
             {rows.map((row) => (
               <li key={row.id} className="order-activity__item">
-                <div className="order-activity__head">
-                  <time>{formatActivityTime(row.created_at)}</time>
-                  <strong>{activityWho(row)}</strong>
-                  <span>{row.action_label || row.action}</span>
+                <div className="al-entry__head">
+                  <span className={`al-badge al-badge--${actionTone(row.action)}`}>{activityHeadline(row)}</span>
+                  <time className="al-entry__time">{formatActivityTime(row.created_at)}</time>
                 </div>
-                <ActivityChanges changes={row.changes} />
+                <p className="al-entry__who">by <strong>{activityWho(row)}</strong></p>
+                <ActivityChanges changes={row.changes} summary={row.summary} />
               </li>
             ))}
           </ol>

@@ -3,7 +3,15 @@ import { Link } from 'react-router-dom';
 import { getActivityFilters, getActivityLog } from '../../services/api';
 import { Button } from '../../components/Buttons';
 import ActivityChanges from '../../components/ActivityChanges/ActivityChanges';
-import { activityWho, downloadActivityCsv, formatActivityTime } from '../../utils/activityFormat';
+import {
+  actionTone,
+  activityHeadline,
+  activityWho,
+  dayLabel,
+  downloadActivityCsv,
+  initialsOf,
+  timeOnly,
+} from '../../utils/activityFormat';
 import '../../styles/shared.css';
 import './ActivityLog.css';
 
@@ -129,7 +137,7 @@ export default function ActivityLog() {
 
       <section className="panel">
         <div className="panel__header">
-          <h3>Changes</h3>
+          <h3>Recent changes</h3>
           <span className="activity-log__count">{total} entr{total === 1 ? 'y' : 'ies'}</span>
         </div>
         <div className="panel__body activity-log__table-wrap">
@@ -138,37 +146,37 @@ export default function ActivityLog() {
           ) : rows.length === 0 ? (
             <p className="form-hint">No changes recorded for these filters yet.</p>
           ) : (
-            <table className="activity-log__table">
-              <thead>
-                <tr>
-                  <th>When (IST)</th>
-                  <th>Who</th>
-                  <th>Action</th>
-                  <th>Order</th>
-                  <th>What changed</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row) => (
-                  <tr key={row.id}>
-                    <td className="activity-log__time">{formatActivityTime(row.created_at)}</td>
-                    <td className="activity-log__who">
-                      <strong>{activityWho(row)}</strong>
-                      {row.admin_email ? <span>{row.admin_email}</span> : null}
-                    </td>
-                    <td className="activity-log__action">{row.action_label || row.action}</td>
-                    <td className="activity-log__order">
-                      {row.order_id ? <Link to={`/orders/${row.order_id}`}>{row.order_number || `#${row.order_id}`}</Link> : '—'}
-                    </td>
-                    <td>
-                      {Array.isArray(row.changes) && row.changes.length
-                        ? <ActivityChanges changes={row.changes} />
-                        : <span className="form-hint">{row.summary || '—'}</span>}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <ol className="al-feed">
+              {rows.map((row, index) => {
+                const day = dayLabel(row.created_at);
+                const showDay = index === 0 || dayLabel(rows[index - 1].created_at) !== day;
+                const who = activityWho(row);
+                return (
+                  <li key={row.id} className="al-feed__item">
+                    {showDay ? <h4 className="al-feed__day">{day}</h4> : null}
+                    <article className="al-entry">
+                      <div className="al-entry__avatar" aria-hidden="true">{initialsOf(who)}</div>
+                      <div className="al-entry__body">
+                        <header className="al-entry__head">
+                          <div className="al-entry__title">
+                            <span className={`al-badge al-badge--${actionTone(row.action)}`}>{activityHeadline(row)}</span>
+                            {row.order_id ? (
+                              <Link className="al-entry__order" to={`/orders/${row.order_id}`}>{row.order_number || `#${row.order_id}`}</Link>
+                            ) : null}
+                          </div>
+                          <time className="al-entry__time" dateTime={row.created_at}>{timeOnly(row.created_at)}</time>
+                        </header>
+                        <p className="al-entry__who">
+                          by <strong>{who}</strong>
+                          {row.admin_email && row.admin_email !== who ? <span> · {row.admin_email}</span> : null}
+                        </p>
+                        <ActivityChanges changes={row.changes} summary={row.summary} />
+                      </div>
+                    </article>
+                  </li>
+                );
+              })}
+            </ol>
           )}
           {total > PAGE_SIZE && (
             <div className="activity-log__pagination">
