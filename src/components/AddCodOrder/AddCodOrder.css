@@ -1,0 +1,168 @@
+/* Add Order modal: payment-type cards + prepaid payment section */
+
+.order-type {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.order-type__option {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.order-type__option:hover {
+  border-color: #fdba74;
+}
+
+.order-type__option.is-selected {
+  border-color: #f97316;
+  background: #fff7ed;
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.12);
+}
+
+/* Hide the native radio but keep it keyboard-accessible */
+.form-group .order-type__option input[type='radio'] {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  pointer-events: none;
+}
+
+.order-type__option:focus-within {
+  outline: 2px solid #f97316;
+  outline-offset: 2px;
+}
+
+.order-type__dot {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  border: 2px solid #cbd5e1;
+  border-radius: 50%;
+  background: #fff;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.order-type__option.is-selected .order-type__dot {
+  border-color: #f97316;
+  box-shadow: inset 0 0 0 4px #fff, inset 0 0 0 9px #f97316;
+}
+
+.order-type__text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.order-type__text strong {
+  font-size: 0.95rem;
+  color: #0f172a;
+}
+
+.order-type__text span {
+  font-size: 0.82rem;
+  color: #64748b;
+  line-height: 1.35;
+}
+
+/* Prepaid payment details block */
+.prepaid-box {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 16px;
+  padding: 16px;
+  border: 1px solid #bbf7d0;
+  border-radius: 14px;
+  background: #f0fdf4;
+}
+
+.prepaid-box__head {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.prepaid-box__head h4 {
+  margin: 0;
+  font-size: 1rem;
+  color: #14532d;
+}
+
+.prepaid-box__amount {
+  font-weight: 700;
+  color: #15803d;
+}
+
+.prepaid-box__note {
+  grid-column: 1 / -1;
+  margin: -6px 0 0;
+  font-size: 0.82rem;
+  color: #166534;
+}
+
+.prepaid-box .form-group {
+  margin: 0;
+}
+
+.prepaid-box .form-group input,
+.prepaid-box .form-group select {
+  background: #fff;
+}
+
+.prepaid-box__full {
+  grid-column: 1 / -1;
+}
+
+.prepaid-box__error {
+  color: #b91c1c;
+  font-size: 0.8rem;
+}
+
+.prepaid-box__checks {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 10px;
+  padding-top: 4px;
+  border-top: 1px dashed #bbf7d0;
+}
+
+.prepaid-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.9rem;
+  color: #1e293b;
+  cursor: pointer;
+}
+
+.prepaid-check input[type='checkbox'] {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  accent-color: #16a34a;
+}
+
+@media (max-width: 640px) {
+  .order-type,
+  .prepaid-box {
+    grid-template-columns: 1fr;
+  }
+}

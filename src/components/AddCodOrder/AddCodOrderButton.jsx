@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { createManualCodOrder, validatePromoCode } from '../../services/api';
+import { createManualCodOrder, createManualPrepaidOrder, validatePromoCode } from '../../services/api';
 import { Button } from '../Buttons';
 import { Modal } from '../Modal';
+import './AddCodOrder.css';
 
 const OFFLINE_SOLD_OPTIONS = ['COD Paid-Cash', 'COD Paid-QR'];
 
@@ -19,7 +20,22 @@ const emptyCodForm = {
   promo_code: '',
   offline_sold: 'COD Paid-Cash',
   purchased_on: '',
+  // Prepaid (already paid) — only on the Orders page (allowPrepaid)
+  payment_type: 'cod',
+  payment_method: 'upi',
+  payment_reference: '',
+  paid_on: '',
+  payment_confirmed: false,
+  notify: true,
 };
+
+const PREPAID_METHODS = [
+  { value: 'upi', label: 'UPI / QR code' },
+  { value: 'bank_transfer', label: 'Bank transfer' },
+  { value: 'razorpay_link', label: 'Razorpay payment link' },
+  { value: 'other', label: 'Other' },
+];
+const PAYMENT_REFERENCE = /^[A-Za-z0-9@._\-/]{4,64}$/;
 
 /** Today as YYYY-MM-DD in the admin's local time (latest allowed Purchased On date). */
 function todayLocal() {
@@ -29,7 +45,7 @@ function todayLocal() {
 }
 
 /** The same Add COD Order button and form used on Orders and Offline Sold. */
-export default function AddCodOrderButton({ onCreated, disabled = false, showOfflineSold = true }) {
+export default function AddCodOrderButton({ onCreated, disabled = false, showOfflineSold = true, allowPrepaid = false }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(emptyCodForm);
   const [saving, setSaving] = useState(false);
@@ -38,8 +54,12 @@ export default function AddCodOrderButton({ onCreated, disabled = false, showOff
   const [promoError, setPromoError] = useState('');
   const [promoChecking, setPromoChecking] = useState(false);
 
+  const isPrepaid = allowPrepaid && form.payment_type === 'prepaid';
+  const cleanReference = String(form.payment_reference || '').replace(/\s+/g, '');
+  const referenceInvalid = isPrepaid && cleanReference !== '' && !PAYMENT_REFERENCE.test(cleanReference);
+
   const openModal = () => {
-    setForm(emptyCodForm);
+    setForm({ ...emptyCodForm, paid_on: todayLocal() });
     setError('');
     setPromo(null);
     setPromoError('');
@@ -104,8 +124,27 @@ export default function AddCodOrderButton({ onCreated, disabled = false, showOff
     if (saving) return;
     setSaving(true);
     setError('');
+    if (isPrepaid && (!PAYMENT_REFERENCE.test(cleanReference) || !form.payment_confirmed)) {
+      setError(!PAYMENT_REFERENCE.test(cleanReference)
+        ? 'Enter the transaction ID / UTR / Razorpay payment ID.'
+        : 'Tick the box to confirm the payment was received in the company account.');
+      setSaving(false);
+      return;
+    }
     try {
-      const created = await createManualCodOrder({
+      const create = isPrepaid ? createManualPrepaidOrder : createManualCodOrder;
+      const prepaidFields = isPrepaid
+        ? {
+            payment_method: form.payment_method,
+            payment_reference: cleanReference,
+            paid_on: form.paid_on || todayLocal(),
+            amount_received: Number(form.total_amount),
+            payment_confirmed: true,
+            notify: Boolean(form.notify),
+          }
+        : {};
+      const created = await create({
+        ...prepaidFields,
         customer_name: String(form.customer_name || '').trim(),
         phone: String(form.phone || '').trim(),
         email: String(form.email || '').trim(),
@@ -125,7 +164,7 @@ export default function AddCodOrderButton({ onCreated, disabled = false, showOff
       if (onCreated) await onCreated(created);
     } catch (err) {
       if (err.status !== 401) {
-        setError(err.message || 'Failed to create COD order');
+        setError(err.message || (isPrepaid ? 'Failed to create prepaid order' : 'Failed to create COD order'));
       }
     } finally {
       setSaving(false);
@@ -135,11 +174,11 @@ export default function AddCodOrderButton({ onCreated, disabled = false, showOff
   return (
     <>
       <Button disabled={disabled} onClick={openModal}>
-        + Add COD Order
+        {allowPrepaid ? '+ Add Order' : '+ Add COD Order'}
       </Button>
       <Modal
         open={open}
-        title="Add COD Order"
+        title={allowPrepaid ? (isPrepaid ? 'Add Order — Prepaid (already paid)' : 'Add Order — Cash on Delivery') : 'Add COD Order'}
         size="lg"
         onClose={() => !saving && setOpen(false)}
         footer={
@@ -148,7 +187,7 @@ export default function AddCodOrderButton({ onCreated, disabled = false, showOff
               Cancel
             </Button>
             <Button type="submit" form="cod-order-form" disabled={saving}>
-              {saving ? 'Saving…' : 'Create COD Order'}
+              {saving ? 'Saving…' : isPrepaid ? 'Create Prepaid Order' : 'Create COD Order'}
             </Button>
           </>
         }
@@ -159,6 +198,35 @@ export default function AddCodOrderButton({ onCreated, disabled = false, showOff
             <span>Product</span>
             <strong>Tel-Aqua Product</strong>
           </div>
+          {allowPrepaid ? (
+            <div className="form-group form-group--full">
+              <span>Payment type</span>
+              <div className="order-type" role="radiogroup" aria-label="Payment type">
+                {[
+                  { value: 'cod', title: 'Cash on Delivery', desc: 'Customer pays the full amount on delivery' },
+                  { value: 'prepaid', title: 'Prepaid', desc: 'Customer has already paid in full (UPI / bank / link)' },
+                ].map((option) => (
+                  <label
+                    key={option.value}
+                    className={`order-type__option${form.payment_type === option.value ? ' is-selected' : ''}`}
+                  >
+                    <input
+                      type="radio"
+                      name="order-payment-type"
+                      value={option.value}
+                      checked={form.payment_type === option.value}
+                      onChange={() => updateField('payment_type', option.value)}
+                    />
+                    <span className="order-type__dot" aria-hidden="true" />
+                    <span className="order-type__text">
+                      <strong>{option.title}</strong>
+                      <span>{option.desc}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          ) : null}
           {showOfflineSold ? (
             <div className="form-group form-group--full">
               <label htmlFor="cod-offline-sold">Offline Sold</label>
@@ -338,6 +406,71 @@ export default function AddCodOrderButton({ onCreated, disabled = false, showOff
               required
             />
           </div>
+          {isPrepaid ? (
+            <section className="prepaid-box" aria-label="Payment received">
+              <div className="prepaid-box__head">
+                <h4>Payment received</h4>
+                <span className="prepaid-box__amount">{form.total_amount ? `₹${form.total_amount}` : '—'}</span>
+              </div>
+              <p className="prepaid-box__note">Full amount paid in advance. The courier will not collect any money.</p>
+              <div className="form-group">
+                <label htmlFor="prepaid-method">Paid via</label>
+                <select
+                  id="prepaid-method"
+                  value={form.payment_method}
+                  onChange={(e) => updateField('payment_method', e.target.value)}
+                  required
+                >
+                  {PREPAID_METHODS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label htmlFor="prepaid-date">Payment date</label>
+                <input
+                  id="prepaid-date"
+                  type="date"
+                  max={todayLocal()}
+                  value={form.paid_on}
+                  onChange={(e) => updateField('paid_on', e.target.value)}
+                  required
+                />
+              </div>
+              <div className="form-group prepaid-box__full">
+                <label htmlFor="prepaid-ref">Transaction ID / UTR / Razorpay payment ID</label>
+                <input
+                  id="prepaid-ref"
+                  autoComplete="off"
+                  placeholder="e.g. 632082106728 or pay_U3VuJj3Y3zB9Un"
+                  value={form.payment_reference}
+                  onChange={(e) => updateField('payment_reference', e.target.value)}
+                  required
+                />
+                {referenceInvalid ? (
+                  <span className="prepaid-box__error">Letters, digits, @ . - _ only (4–64 characters).</span>
+                ) : (
+                  <span className="form-hint">Razorpay IDs (pay_…) are verified with Razorpay automatically.</span>
+                )}
+              </div>
+              <div className="prepaid-box__checks">
+                <label className="prepaid-check">
+                  <input
+                    type="checkbox"
+                    checked={form.payment_confirmed}
+                    onChange={(e) => updateField('payment_confirmed', e.target.checked)}
+                  />
+                  <span>I checked that {form.total_amount ? `₹${form.total_amount}` : 'the full amount'} was received in the company account.</span>
+                </label>
+                <label className="prepaid-check">
+                  <input
+                    type="checkbox"
+                    checked={form.notify}
+                    onChange={(e) => updateField('notify', e.target.checked)}
+                  />
+                  <span>Send the order-confirmation WhatsApp to the customer</span>
+                </label>
+              </div>
+            </section>
+          ) : null}
         </form>
       </Modal>
     </>

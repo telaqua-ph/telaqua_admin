@@ -254,7 +254,11 @@ export function normalizeOrder(order) {
       order.payment_id ||
       order.razorpay_payment_id ||
       order.razorpay_paymentId ||
+      order.manual_payment_reference ||
       '',
+    // Prepaid orders added by staff (Add Order → Prepaid): UPI / bank / payment-link reference.
+    manualPaymentReference: order.manual_payment_reference || '',
+    manualPaymentMethod: order.manual_payment_method || '',
     status: order.order_status || order.status || 'New',
     // Set by the API from the order lifecycle plus cancellation audit/shipment
     // records. This protects dashboard metrics from legacy stale statuses.
@@ -577,6 +581,15 @@ export async function getOrderDeliveryHistory(id) {
 
 export async function createManualCodOrder(payload) {
   const data = await apiRequest('/api/orders/manual-cod', {
+    method: 'POST',
+    body: payload,
+  });
+  return normalizeOrder(unwrapItem(data));
+}
+
+/** Add Order → Prepaid: customer already paid in full (UPI / QR, bank, Razorpay link). */
+export async function createManualPrepaidOrder(payload) {
+  const data = await apiRequest('/api/orders/manual-prepaid', {
     method: 'POST',
     body: payload,
   });

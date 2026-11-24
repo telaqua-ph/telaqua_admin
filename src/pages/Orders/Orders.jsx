@@ -411,11 +411,12 @@ export default function Orders() {
     const list = await loadOrders();
     if (created?.id) {
       const found = (list || []).find((o) => String(o.id) === String(created.id));
+      const kind = String(created.paymentStatus || '').toLowerCase() === 'paid' && created.paymentMode !== 'cod' ? 'Prepaid order' : 'COD order';
       setMessage(
-        `COD order ${found?.orderNumber || created.orderNumber || created.id} created.`
+        `${kind} ${found?.orderNumber || created.orderNumber || created.id} created.`
       );
     } else {
-      setMessage('COD order created.');
+      setMessage('Order created.');
     }
     setError('');
   };
@@ -858,7 +859,7 @@ export default function Orders() {
           ) : null}
           {row.paymentId ? (
             <span className="orders__payment-id" title={row.paymentId}>
-              ID: {row.paymentId}
+              {row.manualPaymentReference && !/^pay_/i.test(row.paymentId) ? 'Ref (manual)' : 'ID'}: {row.paymentId}
             </span>
           ) : (
             <span>ID: —</span>
@@ -1027,7 +1028,7 @@ export default function Orders() {
           >
             Export All Time
           </Button>
-          <AddCodOrderButton disabled={bulkBusy} showOfflineSold={false} onCreated={handleCodOrderCreated} />
+          <AddCodOrderButton disabled={bulkBusy} showOfflineSold={false} allowPrepaid onCreated={handleCodOrderCreated} />
         </div>
       </div>
 
