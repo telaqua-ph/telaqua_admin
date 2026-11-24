@@ -6,6 +6,9 @@ import './ConfirmLeadModal.css';
 const PER_UNIT = 199;
 const MAX_UNITS = 3;
 const REFERENCE = /^[A-Za-z0-9@._\-/]{4,64}$/;
+const todayInIndia = () => new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit',
+}).format(new Date());
 
 /** Same rule as the website checkout: ₹199 per unit (max 3 units), deducted from the total. */
 export function leadAdvanceSplit(total, quantity) {
@@ -22,12 +25,14 @@ export function leadAdvanceSplit(total, quantity) {
 export default function ConfirmLeadModal({ lead, saving, onClose, onConfirm }) {
   const [reference, setReference] = useState('');
   const [method, setMethod] = useState('upi');
+  const [paidOn, setPaidOn] = useState(todayInIndia());
   const [notify, setNotify] = useState(true);
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
     setReference('');
     setMethod('upi');
+    setPaidOn(todayInIndia());
     setNotify(true);
     setChecked(false);
   }, [lead?.leadId]);
@@ -40,7 +45,7 @@ export default function ConfirmLeadModal({ lead, saving, onClose, onConfirm }) {
 
   const submit = () => {
     if (!canSave) return;
-    onConfirm({ reference: cleanRef, method, notify });
+    onConfirm({ reference: cleanRef, method, paidOn, notify });
   };
 
   return (
@@ -84,6 +89,17 @@ export default function ConfirmLeadModal({ lead, saving, onClose, onConfirm }) {
             {reference && !validRef ? (
               <span className="confirm-lead__error">Letters, digits, @ . - _ only (4–64 characters).</span>
             ) : null}
+          </div>
+          <div className="form-group">
+            <label htmlFor="cl-paid-on">Payment received date</label>
+            <input
+              id="cl-paid-on"
+              type="date"
+              value={paidOn}
+              max={todayInIndia()}
+              required
+              onChange={(e) => setPaidOn(e.target.value)}
+            />
           </div>
         </div>
 

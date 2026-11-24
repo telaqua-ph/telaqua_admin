@@ -422,7 +422,7 @@ export async function deleteLead(leadId) {
 }
 
 /** Leads → Confirm: partial payment received by QR; turns the lead into a COD order. */
-export async function confirmLead(lead, { reference, method, notify }) {
+export async function confirmLead(lead, { reference, method, paidOn, notify }) {
   return apiRequest('/api/orders/leads/confirm', {
     method: 'POST',
     body: {
@@ -431,6 +431,7 @@ export async function confirmLead(lead, { reference, method, notify }) {
       lead_id: lead.leadType === 'online' ? lead.orderId : lead.leadId,
       reference,
       method,
+      paid_on: paidOn,
       notify,
     },
   });
