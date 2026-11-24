@@ -69,6 +69,17 @@
   border-radius: 7px;
 }
 
+/* Keep the native calendar glyph visible against this page's dark date fields. */
+.farmer-map__filters input[type='date'] {
+  color-scheme: dark;
+}
+
+.farmer-map__filters input[type='date']::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: brightness(0) invert(1);
+  opacity: 1;
+}
+
 .farmer-map__filters button {
   align-self: end;
 }
