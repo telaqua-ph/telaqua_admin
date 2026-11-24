@@ -9,8 +9,8 @@ import {
   activityWho,
   dayLabel,
   downloadActivityCsv,
+  formatActivityTime,
   initialsOf,
-  timeOnly,
 } from '../../utils/activityFormat';
 import '../../styles/shared.css';
 import './ActivityLog.css';
@@ -164,7 +164,7 @@ export default function ActivityLog() {
                               <Link className="al-entry__order" to={`/orders/${row.order_id}`}>{row.order_number || `#${row.order_id}`}</Link>
                             ) : null}
                           </div>
-                          <time className="al-entry__time" dateTime={row.created_at}>{timeOnly(row.created_at)}</time>
+                          <time className="al-entry__time" dateTime={row.created_at}>{formatActivityTime(row.created_at)}</time>
                         </header>
                         <p className="al-entry__who">
                           by <strong>{who}</strong>
