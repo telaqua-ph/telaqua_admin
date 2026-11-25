@@ -804,6 +804,10 @@ export default function Orders() {
         <div className="orders__order-cell">
           {!row.isSeen && <span className="orders__unread-dot" aria-hidden="true" />}
           <strong>{row.orderNumber || row.id}</strong>
+          <div className="orders__order-date">
+            <span>{row.orderedDate || '—'}</span>
+            {row.orderedTime && <span>{row.orderedTime}</span>}
+          </div>
           {!row.isSeen && <span className="orders__new-badge">NEW</span>}
         </div>
       ),
@@ -965,16 +969,6 @@ export default function Orders() {
         ) : (
           '—'
         ),
-    },
-    {
-      key: 'date',
-      label: 'Ordered at',
-      render: (row) => (
-        <div className="orders__customer">
-          <strong>{row.orderedDate || '—'}</strong>
-          {row.orderedTime && <span>{row.orderedTime}</span>}
-        </div>
-      ),
     },
     {
       key: 'actions',

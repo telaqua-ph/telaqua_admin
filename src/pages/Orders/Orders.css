@@ -56,6 +56,15 @@
   flex-wrap: wrap;
 }
 
+.orders__order-date {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
 .orders__unread-dot {
   width: 8px;
   height: 8px;
